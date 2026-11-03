@@ -1,0 +1,17 @@
+# Agent Workflow
+
+Read README.md before changing this repository.
+
+- Communicate in Russian, briefly. Use English in code and comments.
+- Keep the shared workflow independent of a project and language.
+- Go is the first supported application stack. Do not add Unreal Engine content.
+- Use Python 3.9+ standard library for local workflow tools. Do not add dependencies without a reason.
+- Cover non-trivial behavior, invalid input, and failure paths with unit tests.
+- Run `python3 -m unittest discover -s tests -v` before delivery.
+- Validate changed skills with the bundled skill-creator validator when available.
+- Keep runtime data, personal paths, and secrets out of Git.
+- Do not change global Codex settings as a side effect of editing this repo.
+- Do not commit or push unless the user asks. A retro does not imply publication.
+- Report what changed, checks run, and limits. Do not claim a live hook test from a unit test.
+
+Use `skills/agent-workflow/SKILL.md` for task delivery and `skills/retro/SKILL.md` after acceptance.
