@@ -1,0 +1,265 @@
+{
+  "skill_name": "go-code-style",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Refactor the access condition for readability without changing behavior: if user.IsAdmin || resource.OwnerID == user.ID || checkPermission(user, resource) { allow() }. checkPermission records an audit event on each call. Add tests.",
+      "expected_output": "A clearer condition preserves short-circuit evaluation and the audit behavior.",
+      "assertions": [
+        "Calls checkPermission only when neither the admin nor owner condition succeeds",
+        "Preserves which users are allowed and does not remove or duplicate the audit event",
+        "Uses meaningful names if extracting conditions without forcing unnecessary variables",
+        "Tests an admin, an owner, and a user requiring the permission check"
+      ],
+      "setup": "Disposable Go module with User, Resource, allow, and an instrumented checkPermission; Go version and existing project conventions are supplied."
+    },
+    {
+      "id": 2,
+      "prompt": "Make this nil check easier to read without changing its result or introducing a panic: if item != nil && item.Active && item.Owner.ID == ownerID { return true }. Item.Owner is always non-nil when item is non-nil. Add tests for nil and matching inputs.",
+      "expected_output": "The condition remains safe for nil and maintains its original matching behavior.",
+      "assertions": [
+        "Does not dereference item before establishing that it is non-nil",
+        "Keeps inactive and nonmatching items false and matching active items true",
+        "Tests the nil and matching cases",
+        "Does not add unnecessary changes to public types or interfaces"
+      ],
+      "setup": "Disposable Go module defining Item, Owner, and the original predicate, with an existing test file."
+    },
+    {
+      "id": 3,
+      "prompt": "Implement a JSON endpoint listing users from an existing service. The API contract requires an empty array for no users, and technical errors must not be reported as successful empty results. Add tests.",
+      "expected_output": "The endpoint respects the empty-array and error contracts without applying a blanket rule to all slices.",
+      "assertions": [
+        "Serializes zero users as [] rather than null",
+        "Preserves returned users without changing their order",
+        "Returns the established error response for a service failure rather than an empty success",
+        "Tests an empty result, a populated result, and a service error"
+      ],
+      "setup": "Disposable Go HTTP service with a ListUsers dependency that can return a nil slice and an established error response."
+    },
+    {
+      "id": 4,
+      "prompt": "Add a function that counts words in an input slice. It must accept nil and empty input, and callers must be able to add entries to the returned map. Add tests.",
+      "expected_output": "The function returns a writable map with correct counts for all inputs.",
+      "assertions": [
+        "Initializes the map before any write and returns a writable map for nil and empty input",
+        "Counts repeated words correctly without modifying the input slice",
+        "Tests nil, empty, and repeated input and a write to the returned map"
+      ],
+      "setup": "Disposable Go module with the function package and unit tests."
+    },
+    {
+      "id": 5,
+      "prompt": "Implement NormalizedCopy(names []string) []string. Trim whitespace from each name and preserve order, but do not modify the caller's slice. The nil input result must be nil. Add tests.",
+      "expected_output": "The function returns independent transformed data and preserves the nil contract.",
+      "assertions": [
+        "Does not mutate the input slice or share writable result elements with the caller",
+        "Preserves the order and trims each name",
+        "Returns nil for nil input and handles a non-nil empty input without panic",
+        "Tests both result values and input independence"
+      ],
+      "setup": "Disposable Go module with an existing NormalizedCopy signature and Go standard library only."
+    },
+    {
+      "id": 6,
+      "prompt": "Review this Go API for copying hazards: type Cache struct { mu sync.Mutex; items map[string]string }; func snapshot(c Cache) map[string]string { return c.items }. The Cache has already been used. Explain the issues and show a safe way to return an independent snapshot.",
+      "expected_output": "The review recognizes the copied synchronization primitive and shared map and shows a safe independent copy.",
+      "assertions": [
+        "Identifies that passing a used Cache by value copies its mutex",
+        "Identifies that returning c.items exposes the original mutable map",
+        "Uses a pointer to the original Cache and protects the map while copying it",
+        "Returns an independent map and does not copy the used mutex"
+      ],
+      "setup": "Disposable Go package with Cache, concurrent readers and writers, and all access to items protected by mu."
+    },
+    {
+      "id": 7,
+      "prompt": "Implement LoadConfig using the existing reader. When reading fails, add operation context and return an error that callers can inspect with errors.Is. The caller already logs returned errors. Add a test with a sentinel error.",
+      "expected_output": "The operation returns a contextual error while preserving the original error chain and avoiding duplicate logs.",
+      "assertions": [
+        "Preserves the sentinel error for errors.Is",
+        "Adds useful operation context without revealing sensitive content",
+        "Does not log the same failure again before returning it",
+        "Tests the error chain and a successful read"
+      ],
+      "setup": "Disposable Go package with a Reader interface, an existing LoadConfig contract, and a sentinel read error."
+    },
+    {
+      "id": 8,
+      "prompt": "Implement ProcessFile(ctx, name) using the existing context-aware opener. Read and process the file, returning errors to the caller. The opened handle must be closed after successful open, including on read or processing failure. Add tests.",
+      "expected_output": "The caller's context is used and the owned handle is released on all relevant paths.",
+      "assertions": [
+        "Passes the caller's context to the context-aware opener",
+        "Closes the handle on success and after read or processing failure",
+        "Returns useful errors without hiding a failure or panicking",
+        "Tests success and failure paths including handle closure"
+      ],
+      "setup": "Disposable Go module with an opener accepting context.Context and returning an io.ReadCloser; fake handles record Close."
+    },
+    {
+      "id": 9,
+      "prompt": "Fix a validation bug in one Go function. Keep its exported name and signature unchanged. The repository contains an unrelated file with intentionally nonstandard formatting; do not touch it.",
+      "expected_output": "A focused bug fix preserves the public API, formats the changed Go file, and leaves unrelated files alone.",
+      "assertions": [
+        "Fixes the documented validation bug and adds a behavior test",
+        "Preserves the exported name and signature",
+        "Formats changed Go code with gofmt",
+        "Does not modify the unrelated file or perform a repository-wide reformat"
+      ],
+      "setup": "Disposable Go package with exported ValidateUser accepting a whitespace-only name due to a documented bug, and a separate unrelated unformatted file."
+    },
+    {
+      "id": 10,
+      "prompt": "Add an unexported helper to package httpclient that parses an HTTP URL and returns the user ID from its query. Keep the existing exported ParseUrl API unchanged and add tests.",
+      "expected_output": "The new code uses idiomatic names while preserving the existing exported API.",
+      "assertions": [
+        "Uses idiomatic HTTP, URL, and ID initialisms for newly introduced identifiers where applicable",
+        "Keeps the existing ParseUrl exported identifier and its signature unchanged",
+        "Does not unnecessarily expose the new helper",
+        "Tests valid input and malformed URLs or missing IDs according to the supplied contract"
+      ],
+      "setup": "Disposable package httpclient with an existing exported ParseUrl function and documented missing-ID error contract."
+    },
+    {
+      "id": 11,
+      "prompt": "Review a public function with five unrelated parameters and a readable long call site. The team wants to improve readability but must preserve the public API. Propose a minimal change; do not impose a line-length rule that the project does not have.",
+      "expected_output": "A proportionate readability review avoids unnecessary breaking changes and arbitrary parameter-count rules.",
+      "assertions": [
+        "Preserves the public function signature and semantics",
+        "Does not require an options struct solely because the function has five parameters",
+        "Treats line breaks as a readability choice rather than an absolute argument or column count",
+        "Avoids an unrelated redesign or dependency"
+      ],
+      "setup": "Disposable Go module with an established five-parameter exported function, a readable call site, and no custom line-length rule."
+    },
+    {
+      "id": 12,
+      "prompt": "Simplify this parser while preserving all behavior: validate input, call parse, return an error for invalid input or parse failure, and otherwise transform the parsed value. Add tests for both failures and success.",
+      "expected_output": "The parser has clear control flow and preserves validation, errors, and successful output.",
+      "assertions": [
+        "Handles validation and parsing failures before transforming the result",
+        "Returns early or otherwise reduces nesting without losing error context",
+        "Does not keep an unnecessary else after an unconditional return",
+        "Tests valid input, validation failure, and parsing failure"
+      ],
+      "setup": "Disposable Go package with an existing parser, validator, transformer, and specified behavior for invalid input and parse errors."
+    },
+    {
+      "id": 13,
+      "prompt": "Refactor an if-else chain that compares one status value against pending, active, and disabled. Preserve its existing behavior for an unknown status, which returns ErrUnknownStatus. Add tests for each status.",
+      "expected_output": "The status dispatch is clear and preserves all cases and the explicit error contract.",
+      "assertions": [
+        "Preserves behavior for all three supported statuses",
+        "Returns ErrUnknownStatus for unknown input rather than panicking or silently succeeding",
+        "Uses clear alternatives, such as a switch when it helps readability",
+        "Tests known statuses and an unknown status"
+      ],
+      "setup": "Disposable Go package with the status constants and ErrUnknownStatus."
+    },
+    {
+      "id": 14,
+      "prompt": "Implement a function that runs an operation n times for n >= 0. The module declares Go 1.21 and the toolchain cannot be upgraded. Add tests for zero and multiple runs.",
+      "expected_output": "The function is readable, handles zero iterations, and compiles with the project Go version.",
+      "assertions": [
+        "Uses language syntax supported by Go 1.21 and does not use range over an integer",
+        "Runs the operation exactly n times including zero times for n=0",
+        "Tests zero and multiple iterations",
+        "Does not change the go.mod language version or introduce a dependency"
+      ],
+      "setup": "Disposable module declaring go 1.21, with a Go 1.21 compiler and an operation callback."
+    },
+    {
+      "id": 15,
+      "prompt": "Implement parsing of a user-supplied port string. Reject non-numeric and out-of-range values with an error that makes the original string boundaries visible, including whitespace. Add tests.",
+      "expected_output": "A standard-library conversion with explicit invalid input handling and useful quoted diagnostics.",
+      "assertions": [
+        "Accepts valid decimal ports in the contract's range and rejects malformed or out-of-range values",
+        "Uses a standard conversion appropriate for a single integer",
+        "Includes the offending input in a way that distinguishes leading or trailing whitespace",
+        "Tests valid, malformed, out-of-range, and whitespace inputs without a panic"
+      ],
+      "setup": "Disposable Go module whose documented valid port range is 1 through 65535 and that rejects whitespace."
+    },
+    {
+      "id": 16,
+      "prompt": "Implement UpdateName(ctx context.Context, name *string) error. A nil name means leave the stored value unchanged; a pointer to an empty string means set an empty name. Use the existing store and add tests.",
+      "expected_output": "The API preserves the semantic difference between no update and an explicit empty string.",
+      "assertions": [
+        "Does not change the stored value for nil",
+        "Stores an empty string when passed a pointer to an empty string",
+        "Propagates the caller context and any store error",
+        "Tests nil, empty, and nonempty values"
+      ],
+      "setup": "Disposable Go module with the exported function signature, a context-aware name store, and a test fake."
+    },
+    {
+      "id": 17,
+      "prompt": "A package needs a function that returns whether a []string contains a string. Implement it using the standard library available to a Go 1.21 project. Do not add dependencies or introduce a generic framework for this one use.",
+      "expected_output": "A simple type-safe implementation without unnecessary abstractions or dependencies.",
+      "assertions": [
+        "Returns correct results for present, absent, empty, and nil slices",
+        "Uses concrete string types or an appropriate standard-library helper",
+        "Does not add external dependencies or a generalized framework",
+        "Uses features supported by Go 1.21"
+      ],
+      "setup": "Disposable Go 1.21 module with a single package and no dependencies."
+    },
+    {
+      "id": 18,
+      "prompt": "Replace a dot import used by production code with an ordinary import. Preserve behavior and keep an existing blank import that registers the database driver used by the application. Run the relevant tests.",
+      "expected_output": "The import change removes namespace ambiguity without breaking required side-effect registration.",
+      "assertions": [
+        "Qualifies references previously supplied by the dot import and preserves behavior",
+        "Keeps the required blank driver import and its registration side effect",
+        "Does not add another dependency or remove unrelated imports",
+        "Runs or reports the relevant package tests"
+      ],
+      "setup": "Disposable Go application with a production dot import and an existing blank import whose driver registration is required by tests."
+    },
+    {
+      "id": 19,
+      "prompt": "Add a server configuration literal using the existing Config struct with fields Addr, Timeout, and Logger. The project expects named fields for this struct. Do not change the struct or add a dependency.",
+      "expected_output": "A readable named-field literal using the existing configuration contract.",
+      "assertions": [
+        "Uses the existing Config type and assigns the required values to named fields",
+        "Does not depend on positional field order or alter the struct",
+        "Keeps the change focused and formats changed Go code"
+      ],
+      "setup": "Disposable Go module with an existing Config type, specified Addr, Timeout, Logger values, and named-field convention."
+    },
+    {
+      "id": 20,
+      "prompt": "An existing Go project has a configured formatter and an explicit style rule for a code pattern. Make a focused edit to that pattern. The requested behavior and exported API must stay unchanged.",
+      "expected_output": "The result follows the existing project conventions and formatting tools without broad unrelated changes.",
+      "assertions": [
+        "Follows the project's explicitly documented style convention rather than replacing it with a generic preference",
+        "Uses gofmt and the configured project formatter on changed files",
+        "Preserves behavior and the exported API",
+        "Does not reformat unrelated files"
+      ],
+      "setup": "Disposable Go module with an available configured formatter, documented local convention for the targeted code pattern, and unrelated files."
+    },
+    {
+      "id": 21,
+      "prompt": "Clean up a small Go function with comments that only repeat the next line and one comment explaining why a compatibility workaround must remain. Preserve its behavior and exported API.",
+      "expected_output": "The redundant comments are removed while the useful constraint and the code behavior are preserved.",
+      "assertions": [
+        "Removes or improves comments that merely restate the code",
+        "Keeps the explanation of the non-obvious compatibility constraint",
+        "Preserves behavior and the exported API without an unrelated refactor"
+      ],
+      "setup": "Disposable Go package with the described comments, a documented compatibility workaround, and existing tests."
+    },
+    {
+      "id": 22,
+      "prompt": "Add a private helper that formats a display name from an immutable string and an integer age. Neither input is optional. Follow normal Go parameter conventions and use existing tests for the exact output.",
+      "expected_output": "A straightforward helper accepts simple values without introducing unnecessary pointers or dependencies.",
+      "assertions": [
+        "Accepts the string and integer by value unless an existing concrete contract requires otherwise",
+        "Produces the documented output for empty and nonempty names and representative ages",
+        "Keeps the helper unexported and does not introduce an external dependency"
+      ],
+      "setup": "Disposable Go package with existing formatting tests specifying the exact output for name and age."
+    }
+  ]
+}

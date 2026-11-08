@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 import json
+from os import PathLike
 from pathlib import Path
 import re
 import sys
+from typing import Union
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_CONTEXT_BYTES = 24000
 NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
-def project_paths(cwd):
+def project_paths(cwd: Union[str, PathLike[str]]) -> list[Path]:
+    """Return cwd and its parents as paths, stopping at .git or the filesystem root.
+
+    cwd must be an existing directory. The result starts with its resolved path.
+    """
     path = Path(cwd).resolve()
     if not path.is_dir():
         raise ValueError("hook cwd must be an existing directory")
@@ -49,6 +55,10 @@ def settings(paths):
 def skill_text(repo, name):
     if not isinstance(name, str) or not NAME.fullmatch(name):
         raise ValueError("invalid skill name")
+    if name == "go-coding":
+        raise ValueError("go-coding was removed; update workflow config to use go-clean-architecture if appropriate and go-code-style")
+    if name == "go-architecture":
+        raise ValueError("go-architecture was renamed; update workflow config to use go-clean-architecture")
     file = repo / "skills" / name / "SKILL.md"
     text = file.read_text(encoding="utf-8")
     if not text.strip():
@@ -67,11 +77,8 @@ def build_context(event, repo=ROOT):
         raise ValueError("hook cwd is required")
     paths = project_paths(cwd)
     config = settings(paths)
-    names = ["agent-workflow"]
-    if "always" in config:
-        names.extend(config["always"])
-    elif any((p / "go.mod").is_file() or (p / "go.work").is_file() for p in paths):
-        names.append("go-checks")
+    names = ["agent-workflow", *config.get("always", [])]
+
     prompt = event.get("prompt", "")
     if not isinstance(prompt, str):
         raise ValueError("prompt must be a string")
@@ -82,8 +89,6 @@ def build_context(event, repo=ROOT):
         skill_text(repo, name)
         if any(re.search(r"(?<!\w)" + re.escape(s.casefold()), prompt.casefold()) for s in stems):
             names.append(name)
-    if re.search(r"(?<!\w)[$/]retro(?![\w-])", prompt):
-        names.append("retro")
     chunks = ["Agent Workflow: skill instructions for this task. Follow project-specific guidance too."]
     for name in dict.fromkeys(names):
         chunks.append("\nSkill: " + name + "\n" + skill_text(repo, name))

@@ -1,0 +1,101 @@
+{
+  "skill_name": "go-concurrency",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Implement a Go worker that reads jobs from an input channel and sends results to an output channel. The caller may cancel while the worker is waiting for input or while no one is receiving results. The caller owns the output channel. Add tests for normal completion and both blocked cancellation cases.",
+      "setup": "Disposable Go module using the standard library, with a context-aware worker function and caller-owned input and output channels. Tests can coordinate with channels and bounded waits.",
+      "expected_output": "The worker exits after input closes or cancellation, including when a receive or send is blocked, without closing a channel it does not own.",
+      "assertions": [
+        "The worker stops after input closes and processes received jobs according to the contract",
+        "Cancellation can unblock both an input receive and an output send, and the caller can observe worker completion",
+        "The worker does not close the caller-owned output channel or leave a sender blocked after cancellation",
+        "Tests coordinate blocked operations without sleeps as ordering signals, wait for worker exit, and cover normal completion and both cancellation paths"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Implement a bounded parallel map in Go for a potentially large list of inputs. At most three operations may run at once. Preserve result order, return an operation error, cancel remaining work on failure, and wait for started work before returning. Add tests for success, a failure, and cancellation while work is blocked.",
+      "setup": "Disposable Go module using only the standard library. The supplied operation accepts context and cooperates with cancellation; fakes expose start, release, and exit signals and track current and peak active calls.",
+      "expected_output": "Parallel work is bounded, results preserve input order, and failure or cancellation stops and joins started work without stranding a producer.",
+      "assertions": [
+        "At most three operations are active at once, including for an input larger than the limit",
+        "Success returns one result per input in input order and handles empty input",
+        "Failure is returned, cancellation reaches in-flight operations, and blocked submission can stop",
+        "The function waits for started work before returning; deterministic tests cover success, dependency failure, and caller cancellation"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Fix a Go fan-in function with several producers. The current code lets every producer close the shared results channel and sometimes panics. Preserve all results on normal completion and support cancellation when the consumer stops early. Add tests.",
+      "setup": "Disposable Go module with finite context-aware producers, a shared results channel, and a consumer. Tests may control producer completion with channels.",
+      "expected_output": "Exactly one coordinator closes results after all producers stop; cancellation releases blocked sends and all started goroutines finish.",
+      "assertions": [
+        "All produced results are delivered exactly once on normal completion and the results channel closes after all sends finish",
+        "No producer closes the shared channel, and one coordinator closes it only after all producers exit",
+        "When the consumer stops early, cancellation unblocks sends and all started goroutines can finish",
+        "Tests cover normal completion with multiple producers and early cancellation using deterministic coordination"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Fix a Go account transfer function that updates two balances concurrently. Total funds across the accounts must stay constant and transfers that would overdraw must leave both balances unchanged. Add concurrent tests and keep the existing public API.",
+      "setup": "Disposable Go module with two accounts and the existing transfer API. All access to balances is under the implementation's control; amounts are non-negative integer units.",
+      "expected_output": "Concurrent transfers preserve the multi-account invariant without races or deadlocks and reject an overdraw atomically.",
+      "assertions": [
+        "The balance check and both updates form one synchronized operation, including an overdraw failure that changes neither balance",
+        "Concurrent transfers in opposite directions cannot deadlock and maintain the total balance",
+        "The existing public API remains unchanged and the implementation does not rely on separate atomic balance updates to preserve the invariant",
+        "Tests cover successful and rejected transfers and coordinated concurrent opposite-direction transfers; the affected package is checked with go test -race when supported"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Review and fix this Go code: a WaitGroup is incremented inside each new goroutine, while the caller immediately invokes Wait and then closes a shared resource. The tasks can fail. Return a failure to the caller and ensure the resource stays open until all started tasks have stopped. Add tests.",
+      "setup": "Disposable Go module with finite tasks, an owned closeable resource, and fakes that signal start and completion and can return sentinel errors.",
+      "expected_output": "The owner registers work before starting goroutines, collects failure safely, and waits for all started tasks before closing the resource.",
+      "assertions": [
+        "Each task is registered before its goroutine starts and Wait cannot finish before registered tasks complete",
+        "Task failures reach the caller through a race-free mechanism and a failure is not reported as success",
+        "The shared resource closes only after all started tasks stop, on both success and failure",
+        "Tests coordinate task completion and verify failure propagation and close order without relying on sleeps"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Fix a Go cache method that checks a key under an RWMutex read lock and then takes the write lock to insert a missing value. Concurrent misses can occur. Keep one value per key and do not hold the lock while loading the value, which can be slow. Add tests.",
+      "setup": "Disposable Go module with a map, sync.RWMutex, and a deterministic loader. Concurrent loads may produce different valid values; duplicate loads are allowed. Tests can release concurrent loaders together.",
+      "expected_output": "The method releases its read lock before acquiring the write lock, rechecks after loading, and publishes one stable value per key.",
+      "assertions": [
+        "The method never attempts to upgrade a held read lock to a write lock and does not hold either lock during the slow load",
+        "The map is accessed under the correct lock and a missing key is rechecked after acquiring the write lock",
+        "Concurrent callers return the value ultimately stored for the key, even when duplicate loads return different values",
+        "Tests coordinate concurrent misses and verify the stored value and returned values; the affected package is checked with go test -race when supported"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Review a Go shutdown test that starts a goroutine, sleeps for 100 milliseconds, cancels its context, sleeps again, and checks runtime.NumGoroutine. Replace it with a deterministic test that proves this worker exits after cancellation. The worker can block while sending a result.",
+      "setup": "Disposable Go module with a context-aware worker and a test that can expose a signal before the worker attempts its send. No third-party leak detector is installed.",
+      "expected_output": "The test uses explicit coordination and observes this worker's completion after cancellation, with bounded waits only as failure guards.",
+      "assertions": [
+        "The test establishes that the worker reached the blocked-send path using an explicit signal rather than a sleep",
+        "After cancellation the test observes the worker's completion within a bounded wait and cleans up any started work",
+        "The test does not treat a global goroutine count or a passing race detector as proof that the worker exited",
+        "The affected package is checked with go test -race when supported and any unsupported or unrun check is reported"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Review this Go initialization code: sync.Once runs a remote configuration load and stores its error; callers expect a later call to retry after a temporary failure. Explain the bug and implement retry behavior that is safe for concurrent callers. Add tests.",
+      "setup": "Disposable Go module using the standard library. The fake loader fails on its first call and succeeds on the next; successful configuration is immutable and may be reused.",
+      "expected_output": "A transient failure can be retried and concurrent callers observe a safely published successful result without assuming sync.Once retries.",
+      "assertions": [
+        "Explains that sync.Once does not retry its function after it returns or panics",
+        "A failed load is returned and a later call can retry and obtain the successful configuration",
+        "Concurrent calls do not race on initialization state and all successful callers observe the published configuration",
+        "Tests cover the transient failure, subsequent success, and concurrent access with controlled synchronization"
+      ]
+    }
+  ]
+}

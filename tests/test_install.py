@@ -68,6 +68,15 @@ class InstallTests(unittest.TestCase):
             install.install(self.target, self.repo, apply=True)
         self.assertTrue(dest.is_symlink())
 
+    def test_obsolete_broken_skill_link_is_preserved(self):
+        dest = self.target / ".agents/skills/go-coding"
+        dest.parent.mkdir(parents=True)
+        dest.symlink_to(self.root / "removed-go-coding")
+        install.install(self.target, self.repo, apply=True)
+        self.assertTrue(dest.is_symlink())
+        self.assertFalse(dest.exists())
+        self.assertTrue((self.target / ".agents/skills/agent-workflow").is_symlink())
+
     def test_invalid_hook_config_does_not_create_links(self):
         for config in ([], {"hooks": []}, {"hooks": {"SessionStart": {}}},
                        {"hooks": {"SessionStart": [None]}},
@@ -105,8 +114,23 @@ class InstallTests(unittest.TestCase):
         run = subprocess.run(cmd, shell=True, input=payload, text=True, capture_output=True)
         self.assertEqual(run.returncode, 0, run.stderr)
         context = json.loads(run.stdout)["hookSpecificOutput"]["additionalContext"]
-        for name in ("agent-workflow", "go-checks", "retro"):
-            self.assertIn("Skill: " + name, context)
+        self.assertIn("Skill: agent-workflow", context)
+        for name in ("go-code-style", "go-clean-architecture", "go-concurrency", "retro"):
+            self.assertNotIn("Skill: " + name, context)
+        (self.target / ".agent-workflow.json").write_text(
+            json.dumps({"always": ["go-code-style"], "routes": {"go-clean-architecture": ["clean architecture"]}}), encoding="utf-8")
+        payload = json.dumps({"hook_event_name": "UserPromptSubmit", "cwd": str(self.target), "prompt": "Clean Architecture"})
+        run = subprocess.run(cmd, shell=True, input=payload, text=True, capture_output=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        context = json.loads(run.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("Skill: go-code-style", context)
+        self.assertIn("Skill: go-clean-architecture", context)
+        payload = json.dumps({"hook_event_name": "UserPromptSubmit", "cwd": str(self.target), "prompt": "Fix goroutine leaks"})
+        run = subprocess.run(cmd, shell=True, input=payload, text=True, capture_output=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        context = json.loads(run.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("Skill: go-code-style", context)
+        self.assertNotIn("Skill: go-concurrency", context)
 
 
 if __name__ == "__main__":

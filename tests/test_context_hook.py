@@ -17,7 +17,7 @@ class ContextTests(unittest.TestCase):
         self.project.mkdir()
         (self.project / ".git").mkdir()
         self.repo = self.root / "shared"
-        for name in ("agent-workflow", "go-checks", "retro"):
+        for name in ("agent-workflow", "go-clean-architecture", "go-code-style", "go-concurrency", "retro"):
             file = self.repo / "skills" / name / "SKILL.md"
             file.parent.mkdir(parents=True)
             file.write_text("Instructions for " + name, encoding="utf-8")
@@ -32,14 +32,35 @@ class ContextTests(unittest.TestCase):
 
     def test_full_skill_text_is_delivered(self):
         self.assertIn("Instructions for agent-workflow", self.context())
-        self.assertNotIn("Instructions for go-checks", self.context())
+        self.assertNotIn("Instructions for go-code-style", self.context())
 
-    def test_go_modules_and_workspaces_load_go_skill_from_nested_directory(self):
-        child = self.project / "cmd/api"
-        child.mkdir(parents=True)
+    def test_go_markers_do_not_select_skills_from_nested_directory(self):
         for marker in ("go.mod", "go.work"):
-            (self.project / marker).write_text("", encoding="utf-8")
-            self.assertIn("Instructions for go-checks", self.context(cwd=str(child)))
+            with self.subTest(marker=marker):
+                project = self.project / marker
+                project.mkdir()
+                (project / ".git").mkdir()
+                (project / marker).write_text("", encoding="utf-8")
+                child = project / "cmd/api"
+                child.mkdir(parents=True)
+                self.assertNotIn("Instructions for go-code-style", self.context(cwd=str(child)))
+                self.assertNotIn("Instructions for go-clean-architecture", self.context(cwd=str(child)))
+                self.assertNotIn("Instructions for go-concurrency", self.context("Fix goroutines", cwd=str(child)))
+
+    def test_clean_architecture_is_loaded_when_configured(self):
+        for config in ({"always": ["go-clean-architecture"]},
+                       {"routes": {"go-clean-architecture": ["clean architecture"]}}):
+            self.config(config)
+            with self.subTest(config=config):
+                self.assertIn("Instructions for go-clean-architecture", self.context("Clean Architecture"))
+
+    def test_configured_concurrency_is_loaded_without_a_go_marker(self):
+        self.config({"always": ["go-concurrency"]})
+        self.assertIn("Instructions for go-concurrency", self.context("Rename a variable"))
+
+    def test_concurrency_prompt_does_not_select_skill_without_configuration(self):
+        (self.project / "go.mod").write_text("", encoding="utf-8")
+        self.assertNotIn("Instructions for go-concurrency", self.context("Fix goroutines"))
 
     def test_project_settings_do_not_leak_from_parent(self):
         (self.root / ".agent-workflow.json").write_text('{"always":["retro"]}', encoding="utf-8")
@@ -55,20 +76,38 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(self.context("$retro").count("Instructions for retro"), 1)
         self.assertIn("Instructions for retro", self.context("/retro"))
 
+    def test_explicit_retro_is_not_loaded_without_configuration(self):
+        for prompt in ("$retro", "/retro"):
+            with self.subTest(prompt=prompt):
+                self.assertNotIn("Instructions for retro", self.context(prompt))
+
     def test_local_settings_replace_shared_config(self):
-        self.config({"always": ["go-checks"]})
+        self.config({"always": ["go-code-style"]})
         self.config({"always": []}, ".agent-workflow.local.json")
-        self.assertNotIn("Instructions for go-checks", self.context())
+        self.assertNotIn("Instructions for go-code-style", self.context())
         self.assertIn("Instructions for agent-workflow", self.context())
 
     def test_invalid_config_and_missing_skills_fail_explicitly(self):
         cases = [{"unknown": []}, {"always": "retro"}, {"always": ["../retro"]},
                  {"routes": []}, {"routes": {"retro": []}}, {"routes": {"retro": [""]}},
                  {"routes": {"../retro": ["retro"]}}, {"always": ["missing"]},
-                 {"routes": {"missing": ["unused"]}}]
+                 {"routes": {"missing": ["unused"]}}, {"always": ["go-checks"]},
+                 {"routes": {"go-checks": ["go"]}}]
         for config in cases:
             self.config(config)
             with self.subTest(config=config), self.assertRaises((ValueError, OSError)):
+                self.context()
+
+    def test_removed_go_skill_gives_actionable_error(self):
+        for config in ({"always": ["go-coding"]}, {"routes": {"go-coding": ["go"]}}):
+            self.config(config)
+            with self.subTest(config=config), self.assertRaisesRegex(ValueError, "go-coding.*go-clean-architecture.*go-code-style"):
+                self.context()
+
+    def test_renamed_architecture_skill_gives_actionable_error(self):
+        for config in ({"always": ["go-architecture"]}, {"routes": {"go-architecture": ["unused"]}}):
+            self.config(config)
+            with self.subTest(config=config), self.assertRaisesRegex(ValueError, "go-architecture.*go-clean-architecture"):
                 self.context()
 
     def test_invalid_event(self):

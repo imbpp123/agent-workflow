@@ -1,0 +1,341 @@
+{
+  "skill_name": "go-postgresql",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "In a Go service backed by PostgreSQL, implement repository methods to get a user by ID and list active users. The get method returns ErrUserNotFound when no user exists. The users table has id, name, and active columns. Add appropriate tests.",
+      "expected_output": "Correct parameterized pgx queries, contract-specific not-found handling, safe iteration, and tests.",
+      "assertions": [
+        "Binds user input and passes the caller context to queries",
+        "Maps absence to ErrUserNotFound while keeping technical errors distinguishable",
+        "Consumes and releases rows and checks scan and iteration errors",
+        "Includes relevant success and failure tests without adding sqlx or an ORM"
+      ],
+      "setup": "Disposable Go module with native pgx v5 and users table matching the prompt."
+    },
+    {
+      "id": 2,
+      "prompt": "In a pgx service, implement a transfer between two accounts. Amount must be positive, both accounts must exist, and the source balance must never become negative, even with concurrent transfers. Return an error when the transfer fails and add tests.",
+      "expected_output": "Atomic transfer with protected balance invariants and coverage of failure and concurrent behavior.",
+      "assertions": [
+        "Validates the amount and protects the non-negative balance invariant under concurrent updates",
+        "Uses one transaction for both updates and checks their effects",
+        "Handles begin, operation, commit, and cleanup failures without claiming an uncertain commit failed definitively",
+        "Tests success, missing accounts, insufficient balance, rollback, and relevant concurrency"
+      ],
+      "setup": "Disposable pgx service with accounts(id, balance), error contracts, and a test PostgreSQL database."
+    },
+    {
+      "id": 3,
+      "prompt": "An existing Go service uses database/sql with the pgx stdlib driver throughout its repository layer. Add a parameterized lookup by user ID following the existing repository contract, without changing its database abstraction.",
+      "expected_output": "A lookup that preserves the existing database/sql abstraction and its established not-found contract.",
+      "assertions": [
+        "Preserves the database/sql abstraction and does not add sqlx or a new database layer",
+        "Uses the existing context-aware query API and binds the ID",
+        "Handles the no-row outcome according to the repository contract",
+        "Keeps other failures distinguishable and covers the behavior with tests"
+      ],
+      "setup": "Disposable Go module with a database/sql repository, pgx stdlib driver, and a documented lookup contract."
+    },
+    {
+      "id": 4,
+      "prompt": "Implement a user search in an existing pgx repository. It accepts a slice of IDs, a sort field, and a sort direction. An empty or nil slice must return no users. Only name and created_at, in ascending or descending order, are accepted. Add tests for malicious input.",
+      "expected_output": "Safe filtering and sorting that enforce the provided contract for all inputs.",
+      "assertions": [
+        "Uses parameterized ID values and defines nil and empty inputs as no users",
+        "Maps both sort field and direction to fixed valid SQL choices and rejects invalid values",
+        "Does not concatenate untrusted input into SQL",
+        "Tests empty inputs and malicious fields and directions"
+      ],
+      "setup": "Disposable pgx repository with users(id, name, created_at) and a test database."
+    },
+    {
+      "id": 5,
+      "prompt": "A new Go service will use PostgreSQL, including bulk imports and database notifications. No database library has been selected. Choose an approach and explain your choice.",
+      "expected_output": "Recommends the native pgx v5 API and pgxpool, explaining relevant PostgreSQL capabilities without adding an ORM or sqlx.",
+      "assertions": [
+        "Recommends native pgx v5 and pgxpool",
+        "Connects the choice to PostgreSQL capabilities such as COPY and LISTEN/NOTIFY",
+        "Does not recommend adding an ORM or sqlx",
+        "Does not claim the choice requires migrating existing code"
+      ],
+      "setup": "Empty Go project with no chosen database library."
+    },
+    {
+      "id": 6,
+      "prompt": "A Go service using pgx looks up a customer by a unique email. Its repository contract returns a customer and found=false when absent; middle_name is nullable. Implement the lookup and tests for absent, NULL, and non-NULL values.",
+      "expected_output": "A parameterized lookup uses the existing not-found contract and scans nullable data correctly.",
+      "assertions": [
+        "Returns found=false without a domain or pgx error when the row is absent",
+        "Preserves the difference between NULL and a non-NULL middle name",
+        "Propagates technical errors separately from the not-found result",
+        "Exercises the lookup and its edge cases"
+      ],
+      "setup": "Disposable pgx repository and customers table with unique email and nullable middle_name."
+    },
+    {
+      "id": 7,
+      "prompt": "A pgx repository looks up an account by a non-unique display name. The API requires exactly one match and must report duplicate matches as a distinct outcome. Implement the lookup.",
+      "expected_output": "The lookup distinguishes zero, one, and multiple rows without silently accepting duplicates.",
+      "assertions": [
+        "Distinguishes no match, one match, and multiple matches",
+        "Uses a query and count check or a supported exact-one-row collector",
+        "Closes or otherwise releases returned rows",
+        "Does not assume QueryRow detects multiple rows"
+      ],
+      "setup": "Disposable pgx repository and accounts table where display_name is not unique."
+    },
+    {
+      "id": 8,
+      "prompt": "In a pgx service, create an account. PostgreSQL can return 23505 for either users_email_key or users_external_id_key, and 23503 for users_team_id_fkey. The API defines ErrEmailTaken only for users_email_key; other failures are technical errors. Implement mapping and tests.",
+      "expected_output": "Only the specified constraint becomes the domain error; other failures remain distinguishable.",
+      "assertions": [
+        "Uses errors.As to inspect pgconn.PgError and checks SQLSTATE and constraint identity",
+        "Maps 23505 for users_email_key to ErrEmailTaken",
+        "Does not map other unique or foreign-key violations to ErrEmailTaken",
+        "Tests known, unknown, and non-PostgreSQL errors"
+      ],
+      "setup": "Disposable pgx repository with the three named constraints and domain error from the prompt."
+    },
+    {
+      "id": 9,
+      "prompt": "A pgx service must distinguish a canceled request, an expired request deadline, and an independently canceled PostgreSQL query. Its team also wants to recognize network timeouts without claiming they are request deadlines. Implement an error classifier and tests.",
+      "expected_output": "Context, server query cancellation, and timeout errors are distinguished without inventing causes.",
+      "assertions": [
+        "Checks wrapped context.Canceled and context.DeadlineExceeded with errors.Is",
+        "Does not infer client cancellation or deadline solely from SQLSTATE 57014",
+        "Does not label every pgconn timeout as a context deadline",
+        "Preserves unrecognized failures for diagnostics or the application contract"
+      ],
+      "setup": "Disposable Go module using pgx v5 and a documented application error contract."
+    },
+    {
+      "id": 10,
+      "prompt": "Implement creation of an order and an audit event in an existing pgx service. If the request is canceled while writing, make a bounded attempt to clean up the transaction. Use the service logger and keep the original error.",
+      "expected_output": "The operations share a transaction and request context; cleanup remains bounded after cancellation.",
+      "assertions": [
+        "All related writes use the same transaction",
+        "Begin, statements, and commit use the request context",
+        "Rollback uses a separate bounded context that can run after request cancellation",
+        "Treats pgx.ErrTxClosed as expected after commit and reports other rollback failures without replacing the original error",
+        "Does not log raw rollback errors or sensitive markers contained in them"
+      ],
+      "setup": "Disposable pgx service with orders and audit event tables and an existing logger. Its test fixture can return a rollback error containing a synthetic sensitive marker and capture log output."
+    },
+    {
+      "id": 11,
+      "prompt": "A pgx transaction may fail with SQLSTATE 40001 or 40P01. Implement a retry policy for an operation that writes a database record and then sends an email. The commit can also fail with a network error.",
+      "expected_output": "Retries are limited to safe transaction failures; external side effects and uncertain commits are not blindly repeated. The response does not claim exactly-once delivery without an additional mechanism.",
+      "assertions": [
+        "Retries the complete database operation in a new transaction for recognized retryable failures",
+        "Uses a bounded retry count, backoff, and context cancellation",
+        "Does not repeat the email or other external side effect inside database transaction retry attempts",
+        "Does not blindly retry an uncertain network error at commit"
+      ],
+      "setup": "Disposable pgx service with a transaction runner and an email sender interface."
+    },
+    {
+      "id": 12,
+      "prompt": "A new Go API uses one PostgreSQL database and may handle requests concurrently. Add database startup and shutdown wiring. Startup must fail if PostgreSQL is unreachable.",
+      "expected_output": "The application owns and reuses a pool, verifies startup, and releases it on shutdown.",
+      "assertions": [
+        "Creates and reuses a shared pgx pool instead of a connection or pool per request",
+        "Checks configuration and creation errors and performs a bounded startup ping",
+        "Closes the pool when the startup ping fails",
+        "Stops new work and releases active resources before closing the pool"
+      ],
+      "setup": "Disposable Go API with one PostgreSQL configuration and a documented startup lifecycle."
+    },
+    {
+      "id": 13,
+      "prompt": "A team is designing a pgx repository that will use pool acquisition, Query, QueryRow, and batches. Show how to manage their resource lifetimes, including error paths and shutdown, and propose tests.",
+      "expected_output": "The design accounts for each pool resource and its error paths without claiming an unobserved bug.",
+      "assertions": [
+        "Releases explicitly acquired connections",
+        "Closes rows and checks iteration errors, and calls Scan on QueryRow results",
+        "Closes BatchResults and handles its error",
+        "Covers cancellation or error paths and checks pool resources are returned"
+      ],
+      "setup": "Disposable Go module using pgx v5; no existing implementation is supplied."
+    },
+    {
+      "id": 14,
+      "prompt": "A Go service uses pgx and has an existing metrics pipeline. Add useful PostgreSQL pool metrics; a platform team already exports database-wide server metrics. Do not add a new telemetry SDK.",
+      "expected_output": "Pool metrics use the existing pipeline and do not duplicate server collection.",
+      "assertions": [
+        "Reports current acquired, idle, and maximum pool connections as gauges",
+        "Reports acquisition and cancellation statistics with correct cumulative or delta semantics, including resets",
+        "Keeps application pool statistics separate from existing server metrics",
+        "Does not expose credentials or query parameter values"
+      ],
+      "setup": "Disposable Go service with a pgx pool and an existing metrics interface; server exporter already exists."
+    },
+    {
+      "id": 15,
+      "prompt": "A Go service uses pgx and has no metrics or tracing backend. Add an account lookup. There is no request to set up monitoring.",
+      "expected_output": "The lookup follows the existing application setup without adding a monitoring service or SDK.",
+      "assertions": [
+        "Does not add a monitoring SDK, collector, or telemetry service",
+        "Uses parameterized SQL and the existing repository contract",
+        "Does not expose credentials or query parameter values in diagnostics"
+      ],
+      "setup": "Disposable Go service with pgx repository conventions and no observability dependencies."
+    },
+    {
+      "id": 16,
+      "prompt": "A service uses pgx v5.11 through PgBouncer 1.21 in transaction pooling mode. Review two deployments: one has max_prepared_statements=0 and the other has max_prepared_statements=100. Explain compatibility and suitable pgx query modes without changing infrastructure.",
+      "expected_output": "The review makes compatibility conditional on the actual PgBouncer and pgx versions and configuration.",
+      "assertions": [
+        "Checks prepared-statement compatibility for both specified deployments",
+        "Identifies a compatible pgx execution mode when prepared-statement support is disabled",
+        "Recognizes that enabled prepared-statement support can permit the default pgx mode",
+        "Does not change PgBouncer settings or claim the same workaround is mandatory in both deployments"
+      ],
+      "setup": "Disposable Go service configuration using the two pgx and PgBouncer deployments described in the prompt."
+    },
+    {
+      "id": 17,
+      "prompt": "Add integration tests for a repository that creates an order and commits it through its own pgx pool. The project has migrations and a test PostgreSQL instance. Tests may run concurrently.",
+      "expected_output": "Tests exercise the real repository with isolated data and cover both committed results and rollback.",
+      "assertions": [
+        "Uses the real repository and applies the project migrations to disposable test data",
+        "Isolates and cleans up committed changes across tests",
+        "Does not rely on rolling back an unrelated test transaction to undo repository commits",
+        "Checks both successful commit and rollback after a later write fails"
+      ],
+      "setup": "Disposable pgx repository with project migrations and an isolated PostgreSQL test database."
+    },
+    {
+      "id": 18,
+      "prompt": "A team needs to monitor PostgreSQL server health and already has a database exporter and Sentry. Recommend how to use the existing monitoring for this service without installing new extensions.",
+      "expected_output": "The recommendation separates server statistics from pgxpool metrics and reuses existing collection.",
+      "assertions": [
+        "Distinguishes database-wide server metrics from per-application pool metrics",
+        "Includes meaningful server signals such as connections, lock waits, rollback rates, or deadlocks",
+        "Reuses the existing collector and checks backend support rather than assuming Sentry collects these metrics",
+        "Avoids duplicate collection, secret exposure, and installing unrequested extensions"
+      ],
+      "setup": "Disposable architecture context describing the existing exporter and Sentry without assuming their metric support."
+    },
+    {
+      "id": 19,
+      "prompt": "A pgx list endpoint must handle a large users table and accepts a client page size. Explain and implement a safe bounded page with stable ordering and tests for empty results.",
+      "expected_output": "The endpoint bounds memory use, orders results consistently, and respects its empty-result contract.",
+      "assertions": [
+        "Validates or caps the page size and uses a stable order with a unique tie-breaker",
+        "Does not load an unbounded result into memory",
+        "Closes rows and handles scan and iteration errors",
+        "Preserves the specified or existing nil versus empty response contract"
+      ],
+      "setup": "Disposable pgx service with users table and an existing empty-result response contract."
+    },
+    {
+      "id": 20,
+      "prompt": "A pgx operation expects exactly one row. A collector can return pgx.ErrTooManyRows. A separate transaction commit returns pgx.ErrTxCommitRollback. Explain how each outcome should be handled.",
+      "expected_output": "The response distinguishes duplicate rows, a known rollback, and an uncertain commit.",
+      "assertions": [
+        "Recognizes ErrTooManyRows as multiple results rather than not-found",
+        "Recognizes ErrTxCommitRollback as a commit that resulted in rollback",
+        "Does not treat all other commit failures as definitely rolled back",
+        "Applies domain error mapping according to the application contract"
+      ],
+      "setup": "Disposable Go module using a pgx version that supports the exact-one-row collector."
+    },
+    {
+      "id": 21,
+      "prompt": "Add a paginated product search to an existing pgx service. The products table and migrations already exist. A client may search by title and request an offset and page size. Keep the change limited to the repository and its tests.",
+      "expected_output": "A bounded, safe query using the existing schema and project conventions.",
+      "assertions": [
+        "Uses existing schema and migrations without unsolicited schema changes",
+        "Binds title and pagination values and enforces a reasonable page bound",
+        "Uses a deterministic order with a unique tie-breaker",
+        "Checks query, scan, and iteration failures and releases rows"
+      ],
+      "setup": "Disposable pgx repository with products table, existing migrations, and repository tests."
+    },
+    {
+      "id": 22,
+      "prompt": "A service streams a large pgx query and sends one external notification per row. The query can fail after some rows have already arrived. Review the implementation and propose an appropriate error and delivery strategy.",
+      "expected_output": "The response accounts for partial delivery and does not treat early rows as proof of full query success.",
+      "assertions": [
+        "Checks the final query or iteration error and releases rows",
+        "Explicitly addresses external notifications already sent before a later failure",
+        "Does not claim a database rollback can undo notifications already sent",
+        "Avoids requiring unbounded in-memory collection for large results"
+      ],
+      "setup": "Disposable pgx streaming path with a testable external notification interface."
+    },
+    {
+      "id": 23,
+      "prompt": "A pgx repository lists up to a validated page size of 100 users. The API contract serializes an empty list as [] rather than null. Implement the list method without issuing extra database queries solely for allocation.",
+      "expected_output": "A bounded list implementation and API response that preserve the empty-list contract without an unnecessary count query.",
+      "assertions": [
+        "Returns an empty JSON array at the API boundary, either from a non-nil list or through explicit serialization handling",
+        "Does not issue a COUNT query solely to size the slice",
+        "Keeps the query bounded and handles rows and iteration errors",
+        "If preallocating, uses zero length and a bounded capacity"
+      ],
+      "setup": "Disposable pgx service with users table and the empty-list API contract in the prompt."
+    },
+    {
+      "id": 24,
+      "prompt": "An existing pgx service has a repository interface that must not expose driver types. Implement mapping for a known domain conflict and an unexpected database failure, retaining enough internal information to diagnose production issues.",
+      "expected_output": "The repository preserves its contract while retaining useful internal diagnostics.",
+      "assertions": [
+        "Maps only the recognized domain conflict",
+        "Does not expose pgx driver error types through the repository error chain when the contract forbids it",
+        "Keeps unexpected failures distinguishable under the application contract",
+        "Retains safe diagnostics internally without exposing credentials or query parameters"
+      ],
+      "setup": "Disposable pgx repository with an explicit no-driver-types error contract and internal logging policy."
+    },
+    {
+      "id": 25,
+      "prompt": "A pgx service starts a transaction, writes a record, encounters a SQL error, and then wants to continue with another statement in the same transaction. Explain how to support optional partial failure safely.",
+      "expected_output": "Explains failed transaction state and uses a savepoint only when partial recovery is actually required.",
+      "assertions": [
+        "Does not continue ordinary statements in an aborted transaction",
+        "Uses rollback of the full transaction or a properly managed savepoint for partial recovery",
+        "Keeps operations within the same transaction or savepoint as appropriate",
+        "Handles errors from rollback or savepoint operations"
+      ],
+      "setup": "Disposable pgx transaction service with an optional sub-operation and clear partial-failure requirements."
+    },
+    {
+      "id": 26,
+      "prompt": "An existing Go PostgreSQL service processes a large import one row at a time. The team suspects the import is slow but has no benchmark. Review it and propose how to improve it without changing the schema.",
+      "expected_output": "A measured performance approach that considers batching or COPY without assuming one technique always wins.",
+      "assertions": [
+        "Measures the existing workload before choosing an optimization",
+        "Considers batching or COPY when appropriate and checks operation errors",
+        "Keeps batch resources and transactions properly finalized",
+        "Does not change the schema as a side effect"
+      ],
+      "setup": "Disposable Go import service using pgx, with existing schema and an appropriate benchmark workload."
+    },
+    {
+      "id": 27,
+      "prompt": "An existing Go service has PostgreSQL integration tests which are required in CI. The local developer cannot start the test database. Explain what to run and how to report the result; the task does not include changing CI configuration.",
+      "expected_output": "A clear distinction between executed unit checks and unavailable integration checks without unrelated CI edits.",
+      "assertions": [
+        "Reports PostgreSQL integration tests as not run or skipped with the actual reason",
+        "Does not represent fakes or unit tests as proof of PostgreSQL integration",
+        "Runs or recommends the available project checks separately",
+        "Does not change CI configuration when it is outside the task"
+      ],
+      "setup": "Disposable Go repository with documented unit and CI-required integration commands; PostgreSQL unavailable locally."
+    },
+    {
+      "id": 28,
+      "prompt": "An existing Go service uses database/sql with lib/pq for PostgreSQL. Add a lookup by ID with the existing not-found contract and tests, keeping the current database layer.",
+      "expected_output": "A parameterized lookup preserves the existing library, contract, and test conventions.",
+      "assertions": [
+        "Keeps database/sql and lib/pq without introducing pgx or a new database abstraction",
+        "Uses the existing context-aware query API and binds the ID",
+        "Handles absence with the existing contract and database/sql error types",
+        "Covers successful lookup, absence, and technical failures"
+      ],
+      "setup": "Disposable Go module with an existing database/sql repository using lib/pq and a documented lookup contract."
+    }
+  ]
+}

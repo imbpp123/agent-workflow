@@ -1,0 +1,101 @@
+{
+  "skill_name": "go-observability",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "In a Go HTTP service, an order handler calls a service and returns 500 when it fails. Add useful operational logging and tests. Existing middleware already logs successful requests. A failure can contain a customer token in its error text.",
+      "setup": "Disposable Go module with a handler, a fake order service, existing request logging middleware, and a structured logger that tests can capture. The fake can return an error containing a synthetic token.",
+      "expected_output": "The failure is observable at the handling boundary without duplicate success logs or leaking the token.",
+      "assertions": [
+        "Records an actionable failure at the handler boundary with a suitable level and operation context",
+        "Does not emit the synthetic token or raw error text containing it in logs or the HTTP response",
+        "Does not add a redundant per-request success log already covered by middleware",
+        "Tests the failure signal and checks for sensitive data without depending on incidental log formatting"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "A Go job retries an external operation twice before giving up. Add observability and tests so an operator can distinguish a retry from final failure. Do not change retry behavior.",
+      "setup": "Disposable Go job with a deterministic fake client that can fail and then succeed or exhaust retries, and an existing structured logger that can be captured in tests. No external service is needed.",
+      "expected_output": "Retries and final failure are distinguishable, while existing retry behavior stays intact.",
+      "assertions": [
+        "Emits an appropriately leveled signal for a meaningful retry and a distinct final failure",
+        "Includes safe operation and attempt context without leaking credentials or unbounded user data",
+        "Preserves the existing retry count and outcome",
+        "Tests both recovery after a retry and exhausted retries without real sleeps or network calls"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "An HTTP handler calls a use case and a repository. The repository currently logs an error and returns it; the use case logs it again; the handler logs it a third time. Remove duplicate reporting while retaining useful diagnosis and the existing response contract. Add tests.",
+      "setup": "Disposable Go service with a capture logger at each layer, a repository fake that fails, and a documented HTTP error response. No live database is required.",
+      "expected_output": "The error retains useful operation context and is reported once at the boundary that handles it.",
+      "assertions": [
+        "The lower layers return or wrap the failure with useful context instead of each logging it",
+        "The handling boundary emits one useful failure signal without exposing sensitive details",
+        "The HTTP response contract remains unchanged",
+        "Tests exercise the failure and check that duplicate logs are not emitted"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Instrument a Go HTTP service's existing metrics for request count and latency. Requests have a route template, status code, raw URL, and user ID. Add tests for two distinct user IDs on the same route.",
+      "setup": "Disposable Go HTTP service with an existing in-memory metrics recorder supporting counters and aggregatable histograms; test requests use a route template and different user IDs and URLs.",
+      "expected_output": "Counts and latency use bounded labels, and user-specific values do not create metric series.",
+      "assertions": [
+        "Records request count and latency using the existing metrics stack",
+        "Uses bounded labels such as route template and status class rather than user IDs or raw URLs",
+        "Uses an aggregatable histogram for latency where the provided recorder supports it",
+        "Tests that requests with different user IDs on the same route do not create user-specific label values"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "A Go HTTP handler calls an instrumented downstream client. Preserve request context and trace correlation, and add tests. The existing tracing integration already creates an HTTP server span; do not introduce another backend.",
+      "setup": "Disposable Go service with an existing context-aware logger, tracing test recorder, HTTP server instrumentation, and a fake downstream client that captures its context. The logger only adds trace fields when configured by the existing integration.",
+      "expected_output": "The downstream call receives the request context and existing trace correlation is preserved without duplicate instrumentation.",
+      "assertions": [
+        "Passes the incoming request context to the downstream operation and preserves cancellation",
+        "Uses the existing tracing and logging integration to preserve correlation rather than assuming context alone adds log fields",
+        "Avoids duplicating the existing HTTP server span or adding a telemetry backend",
+        "Tests context propagation and relevant correlation using the available recorder"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Add tracing around a Go consumer's external operation using the existing tracer. The operation can fail or be canceled. Add tests for successful and failing calls.",
+      "setup": "Disposable Go consumer with an existing tracer and in-memory span recorder, and a fake external client. The operation has no existing span; error messages may contain sensitive data.",
+      "expected_output": "A meaningful span is ended on every path, records failures safely, and carries the caller context.",
+      "assertions": [
+        "Creates a span at the external operation boundary and passes its context downstream",
+        "Ends the span on success, failure, and cancellation paths",
+        "Records failures according to the existing tracer conventions without adding sensitive attributes or raw sensitive errors",
+        "Tests successful and failing behavior and checks cancellation or explicitly reports it as unverified"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "A Go service uses an established structured logger and exports metrics. Add visibility for a new background worker's startup and shutdown. Keep dependencies and deployment unchanged; add tests for the behavior you change.",
+      "setup": "Disposable Go service with an established logger, lifecycle-controlled worker, and capture logger. No profiling or dashboard infrastructure is present.",
+      "expected_output": "Meaningful worker lifecycle events use existing conventions without unrelated infrastructure or logger migration.",
+      "assertions": [
+        "Reports meaningful startup and shutdown with appropriate levels and safe context",
+        "Uses the existing logger and preserves the current dependency and deployment setup",
+        "Does not add a profiling endpoint, backend, dashboard, or logger migration just for the task",
+        "Tests the changed lifecycle signals using deterministic synchronization"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Add a failure metric to a Go service and explain how it was verified. The metrics exporter is unavailable locally and the task does not include changing infrastructure.",
+      "setup": "Disposable Go service with a metrics interface, an in-memory test recorder, and a documented live exporter that cannot be started in the evaluation environment.",
+      "expected_output": "The failure metric is tested locally and live exporter delivery is explicitly unverified.",
+      "assertions": [
+        "Records the failure using the existing metric conventions and bounded labels",
+        "Tests the changed recording behavior with the available recorder, including a failure path",
+        "States that the unavailable live exporter delivery was not verified rather than claiming an end-to-end pass",
+        "Does not add or change infrastructure outside the requested task"
+      ]
+    }
+  ]
+}

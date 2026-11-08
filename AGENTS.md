@@ -3,6 +3,7 @@
 Read README.md before changing this repository.
 
 - Communicate in Russian, briefly. Use English in code and comments.
+- Write skills, prompts, and other model-facing text concisely and clearly. Keep the context, conditions, and exceptions needed to act correctly; avoid repetition.
 - Keep the shared workflow independent of a project and language.
 - Go is the first supported application stack. Do not add Unreal Engine content.
 - Use Python 3.9+ standard library for local workflow tools. Do not add dependencies without a reason.

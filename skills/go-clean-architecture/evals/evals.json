@@ -1,0 +1,77 @@
+{
+  "skill_name": "go-clean-architecture",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "In a Go service using Clean Architecture, implement order cancellation. An order can be cancelled unless it is already shipped; a shipped order must stay unchanged. Both HTTP POST /orders/{id}/cancel and a CLI command can request cancellation. Add tests for a cancellable order, a shipped order, and a repository failure.",
+      "setup": "Disposable empty Go project using the standard library. An in-memory repository is allowed; no live database is required.",
+      "expected_output": "Both entry points use the same application operation and domain invariant; failure does not masquerade as success.",
+      "assertions": [
+        "The shipped-order rule is enforced in domain behavior and a rejected cancellation leaves the order unchanged",
+        "Both HTTP and CLI entry points delegate to the use case rather than owning separate business rules",
+        "The use case works through a consumer-side persistence port and does not import HTTP or SQL implementations",
+        "Tests cover successful cancellation, the shipped invariant, and a repository failure"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Design and implement a Clean Architecture Go operation to quote an order. A pricing policy combines the order subtotal and the customer's loyalty tier: gold gets 10 percent off and standard gets no discount. Prices are integer cents. The customer tier is loaded from an external customer service. Add tests for both tiers and a customer service failure.",
+      "setup": "Disposable empty Go project using the standard library. The external customer service is represented by a fake in tests.",
+      "expected_output": "The application coordinates retrieval while domain behavior owns the pricing rule, without infrastructure dependencies.",
+      "assertions": [
+        "The use case obtains the customer tier through an inward-defined port and passes domain data to pricing behavior",
+        "The pricing rule is in domain behavior, not in the external client, HTTP handler, or repository",
+        "Any domain service is focused on the business rule and has no transport, persistence, or external service dependency",
+        "Tests cover both tiers and the customer lookup failure without requiring the external service"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "In a Clean Architecture Go service, create an order and a matching audit record. Both writes must succeed or fail together. The use case uses two repositories. Design the transaction boundary and implement the operation and tests for success and failure of the second write.",
+      "setup": "Disposable empty Go project using the standard library. An in-memory transaction mechanism is allowed; report real database behavior as unverified if no database is available.",
+      "expected_output": "The use case defines one atomic operation without exposing database transaction types in its contract; infrastructure performs both writes in the same transaction.",
+      "assertions": [
+        "The use case coordinates both writes as one atomic operation via a boundary it owns, without importing concrete SQL or driver transaction types",
+        "The transaction implementation binds both repositories' writes to the same transaction and commits only after both succeed",
+        "A second-write failure is returned and the transaction is rolled back rather than reported as success",
+        "Tests exercise success and second-write failure; claims about real database rollback require a real integration check"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Implement an order creation use case that saves an order and requests payment from an external provider. A repeated request with the same idempotency key must not charge twice, including after a timeout. Explain how failure and retry work and add tests where possible.",
+      "setup": "Disposable empty Go project using the standard library. Only a test payment provider and local storage are available; the provider supports idempotency keys.",
+      "expected_output": "The design makes the external effect and its uncertain outcomes explicit and avoids treating a database transaction as an atomic payment operation.",
+      "assertions": [
+        "Uses a stable idempotency key for repeated payment attempts and avoids claiming a timeout means payment did not occur",
+        "Does not claim that a database transaction can atomically include the external payment",
+        "Explains how persisted state, retry or reconciliation handles partial or uncertain outcomes",
+        "Tests relevant repeated requests and gateway failure or clearly identifies behavior not verified without a real provider"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Implement a user lookup in a Clean Architecture Go service and map its result to HTTP. The contract says a missing user is not found; a database outage is a technical failure. A database error may contain a secret connection string. Add tests for both failures.",
+      "setup": "Disposable empty Go project using the standard library and test doubles. A live database is not required.",
+      "expected_output": "Expected absence is translated distinctly from a technical error; application contracts avoid driver types and HTTP responses do not expose sensitive details.",
+      "assertions": [
+        "The repository maps the known missing-user outcome to the application contract while keeping unexpected errors distinct",
+        "The use case does not import database or HTTP implementation types",
+        "The HTTP handler maps not found and technical failure to different appropriate responses without exposing the secret",
+        "Tests exercise both outcomes, including a synthetic secret marker in the technical error"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Review a Go service where the HTTP handler validates an order's business rules and runs SQL before sending a response. Propose a focused Clean Architecture refactor and show the package dependencies and wiring. Keep the existing public HTTP contract and avoid unrelated changes.",
+      "setup": "Disposable Go module with POST /orders/{id}/cancel: the handler reads status using database/sql, returns 409 for shipped, otherwise updates status to cancelled and returns 204. SQL errors, including missing rows, return 500. Review and propose a refactor; do not modify the code.",
+      "expected_output": "The refactor moves responsibilities to the correct existing boundaries, keeps imports inward, and wires concrete adapters at the entry point.",
+      "assertions": [
+        "The handler translates HTTP input and output and delegates to an application operation without executing SQL or owning the business rule",
+        "Domain behavior owns the business invariant and the repository owns persistence",
+        "The use case depends on consumer-defined ports, the PostgreSQL adapter implements them, and concrete dependencies are wired at the entry point",
+        "The existing HTTP contract is preserved and the proposal does not mandate a new layer, framework, or interface for every type"
+      ]
+    }
+  ]
+}

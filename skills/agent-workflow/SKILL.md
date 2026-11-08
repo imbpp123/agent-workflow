@@ -12,7 +12,7 @@ description: Deliver a coding task with explicit acceptance criteria, verificati
 5. Verify through the entry point used by the user: the actual command, route, binary, or UI. A fixture that constructs a correct result cannot prove that the shipped path creates it. Unit tests and integration checks serve different purposes.
 6. Report changed behavior, files, checks, and remaining limits. If an environment or service is missing, distinguish what ran from what remains unverified. Do not call an untested scenario fixed.
 
-Use `go-checks` for Go application work. Read its SKILL.md when not already included in hook context.
+Use relevant specialist skills for the language and work when available.
 For risky architecture decisions, request a fresh review when available and authorized: provide the problem and source, not your conclusion. Treat findings as hypotheses and verify them.
 
 # After acceptance

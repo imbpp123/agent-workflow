@@ -1,77 +1,67 @@
 # Agent Workflow
 
-Общий процесс работы с Codex для Go-приложений. Один репозиторий с навыками и инструментами; настройки сборки и проверки остаются в каждом проекте.
+Shared Codex skills and local tools for software delivery and retros. The workflow is language-independent; additional skills cover Go. Local tools require Python 3.9+ and use the standard library.
 
-## Что входит
+## Skills
 
-- `agent-workflow`: задача, критерии готовности, проверка через реальный вход, короткая передача результата.
-- `go-checks`: форматирование, тесты, vet и проверка гонок с учётом структуры проекта.
-- `retro`: причины возвратов, подтверждённые изменения процесса и запись в журнал.
-- `scripts/journal.py`: SQLite-журнал, отдельные проекты и области, повторяемые записи защищены от дублирования.
-- `scripts/context_hook.py`: передаёт текст обязательных навыков в контекст Codex при старте и новом сообщении.
-- `scripts/install.py`: подключает общие навыки ссылками и добавляет свой обработчик хуков, сохраняя существующие.
+- `agent-workflow` — task delivery and verification through the real entry point.
+- `go-clean-architecture` — Go architecture and dependency boundaries.
+- `go-code-style` — Go code style and readability.
+- `go-concurrency` — goroutines, synchronization, channels, and tests.
+- `go-observability` — logging, metrics, and tracing.
+- `go-postgresql` — PostgreSQL access from Go.
+- `go-testing` — Go tests and verification.
+- `retro` — review accepted or abandoned work and record evidence.
 
-Требуется Python 3.9+. Внешних Python-зависимостей нет.
+## Install
 
-## Подключение
-
-Сначала посмотреть план, затем применить его:
-
-```sh
-python3 scripts/install.py --project /path/to/go-project
-python3 scripts/install.py --project /path/to/go-project --apply
-```
-
-Для всех проектов текущего пользователя:
+On macOS or Linux, preview and then apply the installation:
 
 ```sh
-python3 scripts/install.py --global
-python3 scripts/install.py --global --apply
+python3 scripts/install.py --project /path/to/project
+python3 scripts/install.py --project /path/to/project --apply
 ```
 
-Установщик создаёт ссылки в `.agents/skills` и добавляет обработчики в `.codex/hooks.json` выбранного проекта или пользователя. Конфликтующие файлы не перезаписываются. Автоматическая установка поддерживает macOS/Linux; Windows пока требует отдельной адаптации установщика. Не подключайте одну базу одновременно глобально и локально без необходимости: Codex может загрузить оба хука.
+Use `--global` instead of `--project /path/to/project` for the current user. The installer links all skills under `.agents/skills` and adds `SessionStart` and `UserPromptSubmit` handlers to `.codex/hooks.json`. It preserves existing handlers and refuses conflicts. The target directory must exist. Automatic installation on Windows is not supported.
 
-После подключения проверьте навыки в Codex и разрешите новые хуки в Settings → Hooks. Наличие файлов не доказывает, что установленная версия приложения исполнила хук. После изменения команд хуков Codex может запросить повторную проверку.
+Avoid installing both globally and locally without a reason: both hooks may run. Approve the hooks in Codex Settings → Hooks and verify context delivery in a new session. Installed files alone do not prove that a hook ran.
 
-## Настройки проекта
+## Configure
 
-`AGENTS.md` проекта содержит команды сборки, ограничения, внешние зависимости и критерии проверки. Дополнительно `.agent-workflow.json` в корне проекта может задать обязательные навыки и маршруты по словам:
+Put project commands, constraints, and checks in its `AGENTS.md`. Optionally, select skills for the hook in `.agent-workflow.json`:
 
 ```json
 {
-  "always": ["agent-workflow", "go-checks"],
-  "routes": {"retro": ["ретро", "retro"]}
+  "always": ["go-code-style", "go-clean-architecture"],
+  "routes": {"go-postgresql": ["postgresql", "postgres"]}
 }
 ```
 
-По умолчанию загружается `agent-workflow`, а `go-checks` — если найден `go.mod` или `go.work`. `$retro` и `/retro` также выбирают навык ретро. Проект ищется от рабочей папки вверх, до границы Git; `.agent-workflow.local.json` заменяет настройки для этой машины. Настройки могут ссылаться только на навыки из этой общей базы.
+The hook always loads `agent-workflow`, plus skills in `always` and routes matching the prompt. Routes match case-insensitive word prefixes. It does not detect Go projects or apply built-in routes. Skills must exist in this repository; invalid configuration or more than 24,000 bytes of selected context prevents delivery.
 
-Хук передаёт полное содержимое выбранных `SKILL.md`, а не отметку о попытке их загрузить. Размер ограничен; ошибка чтения или конфигурации выводится явно. Это доставка инструкций, а не доказательство их выполнения и не полный запрет инструментов. Нет автоматического `git pull`, отправки данных или публикации уроков.
+The hook searches from the working directory up to the Git boundary. At the same directory, `.agent-workflow.local.json` takes precedence over `.agent-workflow.json`. The installer also makes all skills available to Codex independently of hook configuration; Codex may select them by description, or users can invoke them explicitly, for example `$go-concurrency` or `$retro`. Automatic selection and compliance are not guaranteed.
 
-## Журнал и ретро
+Replace old `go-coding` and `go-architecture` configuration entries with current skill names. The installer does not remove old links.
 
-После принятия существенной задачи вызовите `$retro` или попросите провести ретро обычным текстом. Ввод `/retro` обрабатывается нашим хуком, если сообщение дошло до него; это не обещание встроенной slash-команды приложения.
+## Journal and retro
+
+Use `$retro` after substantial work is accepted or abandoned. `scripts/journal.py` stores local records in `~/.codex/agent-workflow/journal.sqlite` by default; use `AGENT_JOURNAL_DB` or `--db` to override it. Keep journal data out of Git.
 
 ```sh
 python3 scripts/journal.py --db /path/to/journal.sqlite add \
   --project api --area http --task-id issue-42 --task 'Handle request timeout' \
   --rounds 1 --cause 'verification:Timeout path was not tested' \
-  --change 'Added a handler timeout test' --evidence 'commit or test reference'
+  --change 'Added a handler timeout test' --evidence 'test or commit reference'
 python3 scripts/journal.py --db /path/to/journal.sqlite list --project api
 python3 scripts/journal.py --db /path/to/journal.sqlite stats --project api
 ```
 
-Без `--db` используется `AGENT_JOURNAL_DB` или `~/.codex/agent-workflow/journal.sqlite`. Журнал локальный и не отправляется в Git. Один возврат — одна причина. Классы: `verification`, `knowledge`, `scope`, `intent`, `tooling`, `collision`. Изменение требований (`intent`) видно отдельно от остальных причин. При возвратах нужны изменение и ссылка на проверку. Допускается исправление применения существующего механизма; плодить правила ради заполненной записи не нужно.
+Record one cause per return. Cause classes are `verification`, `knowledge`, `scope`, `intent`, `tooling`, and `collision`. Statistics are observations, not proof of causation; evidence references are not checked automatically.
 
-Средние значения и сравнения до/после показывают наблюдения, а не причинность. Учитывайте состав задач, размер выборки и изменения требований. Ссылки на доказательства остаются утверждениями автора записи: скрипт не проверяет их истинность.
-
-## Проверка разработки
+## Development
 
 ```sh
 python3 -m unittest discover -s tests -v
 ```
 
-Тесты работают во временных папках и не меняют пользовательский Codex. Живую доставку контекста надо отдельно проверить в новой сессии приложения после установки. Go-навык требует проверки реального приложения; тесты этого репозитория не заменяют проверки Go-проектов.
-
-Источники форматов: [навыки Codex](https://learn.chatgpt.com/docs/build-skills), [хуки Codex](https://learn.chatgpt.com/docs/hooks).
-Исходная идея процесса: [claude-skills-game-UE](https://github.com/Schepetkov/claude-skills-game-UE). Код написан отдельно под этот проект; инструменты и знания UE не перенесены.
+Tests use temporary directories and do not verify live hook delivery in Codex. Skill evaluation instructions are in each Go skill's `evals/README.md`; the [PostgreSQL guide](skills/go-postgresql/evals/README.md) also documents `scripts/eval_postgresql.py`.

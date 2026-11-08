@@ -1,0 +1,245 @@
+{
+  "skill_name": "go-testing",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add tests for a price parser that returns a positive integer for valid input and wraps ErrInvalidPrice for invalid input. Cover boundaries and errors.",
+      "setup": "Disposable Go module with testify installed, the parser and a documented contract for valid and invalid inputs.",
+      "expected_output": "Behavior-focused tests cover normal values, boundaries, and wrapped errors.",
+      "assertions": [
+        "Tests exercise valid inputs, boundary values, and malformed or out-of-range inputs",
+        "Uses require or an equivalent guard for any prerequisite that must succeed before continuing, and independent assertions for separate results",
+        "Checks the wrapped sentinel using ErrorIs or errors.Is and puts expected values before actual values",
+        "Uses table-driven tests when they clarify the cases without changing production behavior just for tests"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add tests for an existing Go package that does not use testify. Follow its Go version and dependency policy.",
+      "setup": "Disposable existing Go module with tests using the standard library, no testify dependency or explicit ban on it, and a documented package contract.",
+      "expected_output": "The tests follow existing conventions without adding testify.",
+      "assertions": [
+        "Checks the existing tests and dependency policy before choosing an approach",
+        "Uses the existing standard-library test style and does not add testify",
+        "Covers observable behavior and meaningful failure paths",
+        "Runs available package tests and reports any checks not run"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Add tests to this Go package. Its dependency policy forbids adding third-party packages.",
+      "setup": "Disposable Go module with no testify and a project rule prohibiting new third-party dependencies.",
+      "expected_output": "Tests follow the explicit dependency restriction.",
+      "assertions": [
+        "Uses the standard library or an already approved dependency instead of adding testify",
+        "Covers observable behavior and a meaningful failure path",
+        "Does not change the dependency policy or add a third-party dependency",
+        "Reports checks actually run and any limits"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Verify a change spanning the API and worker modules in this workspace. Explain the commands and the evidence.",
+      "setup": "Disposable repository with go.work and separate api and worker modules, each with a distinct documented test command; worker tests require an integration build tag and generated code. The repository root is not a module.",
+      "expected_output": "Verification covers both affected modules and their project-specific requirements.",
+      "assertions": [
+        "Identifies both modules, workspace configuration, test commands, build tags, and generated-file prerequisites",
+        "Runs applicable tests and static checks in both affected modules when available rather than relying only on root go test ./..., and reports unavailable checks",
+        "Checks changed Go files with gofmt -l and runs go vet in each affected module when applicable",
+        "Distinguishes commands actually run from commands merely recommended or blocked"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Fix a flaky cancellation test: it sleeps before canceling a goroutine and uses a real public URL as a dependency. Verify the worker exits.",
+      "setup": "Disposable Go module with a cancelable worker and injectable dependency; the test can signal that work started and observe worker completion.",
+      "expected_output": "A deterministic test uses a controlled dependency and observes shutdown.",
+      "assertions": [
+        "Replaces public network access with a controlled dependency or local test server",
+        "Uses explicit coordination instead of sleeps to establish ordering",
+        "Cancels the worker and waits for its completion with bounded failure protection",
+        "Runs the affected tests and go test -race on a supported platform, or reports why not; does not claim the race detector proves every path is safe"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Add tests for an HTTP order handler that parses JSON, calls a service, and respects request cancellation.",
+      "setup": "Disposable Go module with an httptest-compatible handler, a service interface, a documented response contract, and controlled service failures and cancellation.",
+      "expected_output": "Handler tests exercise the actual handler with representative requests and failure paths.",
+      "assertions": [
+        "Sends representative valid and malformed requests to the real handler and checks the documented responses",
+        "Covers a service failure and request cancellation where applicable",
+        "Uses local controlled dependencies rather than a public service",
+        "Runs the relevant tests or reports why they could not run"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Change the CLI startup path so an invalid configuration returns a nonzero exit. Add verification.",
+      "setup": "Disposable Go CLI module with an existing command, valid and invalid configuration fixtures, and a documented startup contract.",
+      "expected_output": "The actual command is exercised for successful and failed startup.",
+      "assertions": [
+        "Invokes the actual CLI entry point with valid and invalid configuration",
+        "Checks the documented result and nonzero exit for invalid configuration",
+        "Covers meaningful behavior with tests without treating a helper-only test as proof of the command path",
+        "Reports commands actually run and any missing prerequisites"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Verify a repository change with unit tests and a PostgreSQL integration test, but the local test database is unavailable. Do not change CI.",
+      "setup": "Disposable Go service with documented unit and integration commands and required PostgreSQL integration tests. The database cannot be started in the evaluation environment.",
+      "expected_output": "Available checks run and the missing database coverage is reported honestly.",
+      "assertions": [
+        "Runs available unit tests and applicable static checks separately from integration tests",
+        "Reports the PostgreSQL integration test as not run or blocked and gives the reason",
+        "Does not treat mocks or unit tests as proof of real SQL or transaction behavior",
+        "Does not change CI or claim a database integration pass"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Review testify assertions in this test: assert.NoError(t, err); assert.Equal(t, got, want); assert.Equal(t, ErrMissing, err). The result is dereferenced immediately after the first assertion.",
+      "setup": "Disposable Go test where the operation may return a nil result and a wrapped ErrMissing. Testify is already available.",
+      "expected_output": "The corrected checks stop before unsafe dereference and compare values and errors correctly.",
+      "assertions": [
+        "Uses require.NoError or an equivalent safe guard before dereferencing the result on the success path",
+        "Puts expected values before actual values in equality assertions",
+        "Uses ErrorIs or errors.Is for the wrapped sentinel on an appropriate error path",
+        "Uses independent assertions where continuation is safe and does not call require in a worker goroutine"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Review these Go tests: one compares unordered IDs, one compares equivalent JSON, and one checks whether two pointers are identical. Fix the assertions.",
+      "setup": "Disposable Go module with a compatible installed testify version, independently allocated equal-valued pointers, unordered IDs, and JSON with different key order.",
+      "expected_output": "Assertions express unordered values, JSON structure, and pointer identity.",
+      "assertions": [
+        "Uses ElementsMatch or an equivalent order-insensitive comparison for the IDs",
+        "Uses JSONEq or an equivalent semantic comparison for the JSON",
+        "Checks pointer identity with Same or an equivalent identity check rather than Equal",
+        "Checks the available testify version before relying on its APIs"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "A test calls an asynchronous API and polls with EventuallyWithT. The callback asserts that an error is nil and immediately reads a possibly nil response. Fix the test.",
+      "setup": "Disposable Go module with a compatible testify version and a controllable asynchronous API that can return nil with an error before succeeding.",
+      "expected_output": "Polling is bounded and the callback stops before reading a failed response.",
+      "assertions": [
+        "Uses explicit synchronization when available or bounds necessary polling with a timeout",
+        "Stops the callback after a failed prerequisite before dereferencing the response",
+        "Asserts the final observable behavior rather than only that polling occurred",
+        "Does not leave asynchronous work running after the test"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "Test a service that must send exactly one email to the supplied address after a successful order and none after a rejected order.",
+      "setup": "Disposable Go module with testify/mock installed, a Sender interface with Send(context.Context, string) error, an order service, and controlled order outcomes.",
+      "expected_output": "Tests invoke the service and verify necessary sender interactions.",
+      "assertions": [
+        "Exercises the real service for both successful and rejected orders",
+        "Uses a mock or equally observable fake to verify one send on success and none on rejection",
+        "When using testify/mock, implements the interface via Called, configures a specific recipient, and verifies expectations after execution",
+        "Uses the correct method argument count for any call assertions and isolates test cases"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "Test a notification retry: the first send returns a temporary error and the second succeeds. The recipient must end in @example.com. Assert that exactly two attempts happen.",
+      "setup": "Disposable Go module with testify/mock, a synchronous retrying service, a sender interface, and a documented two-attempt retry contract.",
+      "expected_output": "The test verifies the retry outcome, argument contract, and exact attempt count.",
+      "assertions": [
+        "Configures separate first-error and second-success returns or an equivalent controlled fake",
+        "Matches the recipient with an appropriate one-argument boolean predicate and does not ignore a meaningful argument",
+        "Verifies exactly two calls and expected interactions after the service returns",
+        "Does not claim AssertExpectations alone proves call order; checks ordering separately if required"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "Review a mock test that reuses expectations across table cases and calls Unset on an expectation using mock.Anything. Failures depend on case order. Fix it.",
+      "setup": "Disposable Go module with testify/mock and table cases configuring multiple overlapping sender expectations.",
+      "expected_output": "Each case has isolated expectations and does not rely on Unset for wildcard matchers.",
+      "assertions": [
+        "Creates a fresh mock for each test case or otherwise fully isolates expectations",
+        "Does not rely on Unset with wildcard or other non-static arguments",
+        "Verifies expectations for each case after the tested operation",
+        "Preserves the contract without introducing case-order dependence"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "Fix a test where the service calls a testify mock from a worker goroutine. The test attaches Mock.Test(t), calls require inside the worker, and immediately verifies an argument pointer that the service later mutates.",
+      "setup": "Disposable Go module with testify/mock, a service that can signal worker completion, and a mutable argument passed to a mock.",
+      "expected_output": "Worker completion and captured argument state make verification safe and deterministic.",
+      "assertions": [
+        "Does not attach Mock.Test(t) to a mock called from another goroutine and does not call require in the worker",
+        "Waits for worker completion before test assertions and mock expectation verification",
+        "Captures the relevant argument value at call time or otherwise prevents later mutation from invalidating call verification",
+        "Uses synchronization and runs the race detector when supported, reporting any unavailable check"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "Review a testify suite with shared fixtures. It invokes t.Parallel in suite tests, does not reset state between cases, and has no suite.Run entry point.",
+      "setup": "Disposable Go module with testify/suite, mutable shared fixtures, and an existing suite containing multiple tests.",
+      "expected_output": "The suite is runnable and keeps test state isolated without unsupported parallel suite tests.",
+      "assertions": [
+        "If retaining the suite, adds a normal Test function that invokes suite.Run; otherwise uses runnable ordinary tests",
+        "Does not run testify suite tests in parallel",
+        "Isolates mutable state for each test, using SetupTest if the suite is retained",
+        "Does not require a suite if ordinary subtests provide a simpler equivalent"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "Test a coordinator that calls a dependency but whose contract only specifies the returned aggregate, not the number or order of calls.",
+      "setup": "Disposable Go module with a dependency interface, deterministic input, and documented aggregate behavior. A small fake can supply the data.",
+      "expected_output": "A focused behavior test avoids unnecessary interaction coupling.",
+      "assertions": [
+        "Tests the returned aggregate and a relevant failure without inventing call-order requirements",
+        "Uses a simple fake or stub when exact interaction expectations add no value",
+        "Does not force testify/mock or a suite merely because they are available",
+        "Keeps the tests deterministic and respects project dependency rules"
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "Test an upload coordinator that sends a payload and may optionally emit an audit event. The sender fills a response through a pointer. Review an existing mock that ignores the payload type and always requires the audit event.",
+      "setup": "Disposable Go module with a documented sender interface, mutable response argument, optional audit behavior, and an installed testify version supporting IsType, Maybe, and Run.",
+      "expected_output": "The test checks the payload type and response handling while allowing the documented optional audit event.",
+      "assertions": [
+        "Checks the meaningful payload or its type with IsType or an equivalent valid matcher rather than ignoring it",
+        "Uses a controlled side effect to fill the response argument when testing that behavior",
+        "Allows the audit call to be absent or present according to the contract without requiring it unconditionally",
+        "Verifies required expectations after the coordinator completes and does not introduce an ordering requirement not present in the contract"
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "Test a checkout workflow whose contract requires authorization to happen before a charge. The current test uses AssertExpectations alone and claims this proves the order.",
+      "setup": "Disposable Go module with a synchronous checkout service, dependency interfaces, testify/mock installed, and a contract requiring successful authorization before the charge.",
+      "expected_output": "The test verifies both required interactions and their required order explicitly.",
+      "assertions": [
+        "Exercises the checkout service and verifies that authorization and charge both occur on success",
+        "Checks that authorization happens before charge using explicit synchronization, call recording, or a supported ordered expectation",
+        "Does not treat AssertExpectations alone as proof of call order",
+        "Uses deterministic coordination and checks the available testify version if relying on an ordering API"
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "Add tests for a new Go project with no established test approach. Follow its Go version and dependency policy.",
+      "setup": "Disposable new Go module declaring an older Go version, with no established test style or dependency ban. An offline fixture provides a compatible testify version and a newer incompatible version.",
+      "expected_output": "The tests use a compatible testify version without unrelated dependency upgrades.",
+      "assertions": [
+        "Reads the module Go version and dependency rules before selecting a version",
+        "Adds testify to the affected module at a version compatible with that Go version",
+        "Checks changes to go.mod and go.sum and avoids unrelated upgrades",
+        "Runs available package tests and reports unavailable dependency resolution rather than claiming success"
+      ]
+    }
+  ]
+}
