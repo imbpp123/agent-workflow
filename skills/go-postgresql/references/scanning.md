@@ -7,7 +7,11 @@ Use the caller's context and parameterized SQL with the project's database libra
 ```go
 var user User
 err := pool.QueryRow(ctx,
-    `SELECT id, name FROM users WHERE id = $1`, id,
+    `SELECT
+        id,
+        name
+    FROM users
+    WHERE id = $1`, id,
 ).Scan(&user.ID, &user.Name)
 if errors.Is(err, pgx.ErrNoRows) {
     return nil, ErrUserNotFound
@@ -23,7 +27,11 @@ return &user, nil
 ## Multiple rows
 
 ```go
-rows, err := pool.Query(ctx, `SELECT id, name FROM users WHERE active = $1`, true)
+rows, err := pool.Query(ctx, `SELECT
+    id,
+    name
+FROM users
+WHERE active = $1`, true)
 if err != nil {
     return nil, fmt.Errorf("query users: %w", err)
 }

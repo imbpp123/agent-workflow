@@ -1,6 +1,6 @@
 # Skill evaluations
 
-`evals.json` defines behavioral scenarios, not executable tests. Each case contains a user `prompt`, the required test `setup`, an `expected_output` summary, and review `assertions`. IDs 1–28 cover library choice and compatibility, queries and scanning, database errors, transactions, pool lifecycle, monitoring, and testing.
+`evals.json` defines behavioral scenarios, not executable tests. Each case contains a user `prompt`, the required test `setup`, an `expected_output` summary, and review `assertions`. IDs 1–30 cover library choice and compatibility, queries and scanning, database errors, transactions, pool lifecycle, monitoring, testing, and migrations.
 
 To run a case manually:
 

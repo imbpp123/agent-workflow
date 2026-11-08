@@ -15,12 +15,19 @@ Do not migrate an existing database layer unless requested. Do not introduce an 
 
 Keep SQL explicit and parameterized. Pass `context.Context` to all database calls. With native pgx, use `QueryRow(...).Scan(...)` for one row, `Query` for multiple rows, and `Exec` for statements without returned rows. Check `pgx.ErrNoRows` with `errors.Is`; translate it according to the domain. With another library, use its equivalent API and error types. Close rows and check iteration errors. Handle nullable values explicitly.
 
+Format SQL across multiple lines for readability; follow existing project formatting when it is established. See [SQL formatting](references/sql-formatting.md).
+
 Use a transaction when operations must succeed or fail together. Choose locking and isolation based on the actual invariant; do not assume every update needs `FOR UPDATE`. Configure and monitor the pool based on the application's connection budget. Test business logic and failure paths; use PostgreSQL integration tests for actual SQL and transaction behavior.
 
-For schema changes and migrations, follow the project's existing process, consider production data and locking, and require appropriate review. Do not change schema unless the task calls for it.
+## Migrations
+
+Follow an existing project's migration process; do not replace its tool or layout unless requested. For a new project without migration conventions, use Goose as a library with a separate `cmd/migrate` entry point, migration runner code in `internal/migration`, and SQL files in `internal/migration/sql`. Embed SQL files in the migration binary to avoid runtime file path dependencies. Use pgx's `database/sql` adapter for Goose; the application can continue using native pgx and `pgxpool`. Run migrations as a separate deployment step, not automatically on application startup.
+
+For schema changes, consider production data and locking, and require appropriate review. Do not change schema unless the task calls for it.
 
 ## References
 
+- [SQL formatting](references/sql-formatting.md): layout for migrations and queries.
 - [Queries and scanning](references/scanning.md): parameters, missing rows, iteration, nullable values and dynamic sorting.
 - [Database errors](references/errors.md): domain outcomes, PostgreSQL error codes and diagnostic boundaries.
 - [Transactions](references/transactions.md): atomic operations, rollback, isolation and retries.

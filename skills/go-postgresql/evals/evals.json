@@ -336,6 +336,30 @@
         "Covers successful lookup, absence, and technical failures"
       ],
       "setup": "Disposable Go module with an existing database/sql repository using lib/pq and a documented lookup contract."
+    },
+    {
+      "id": 29,
+      "prompt": "A new Go service will use PostgreSQL and has no migration process yet. Propose how to manage and run schema migrations.",
+      "expected_output": "The proposal uses Goose and separates the migration command, Go code, and SQL files.",
+      "assertions": [
+        "Uses Goose as the migration tool for the new project",
+        "Places the command entry point in cmd/migrate and migration Go code in internal/migration",
+        "Places SQL migration files in internal/migration/sql",
+        "Keeps migration execution separate from application startup"
+      ],
+      "setup": "Empty Go service with PostgreSQL and no existing migration tool or directory conventions."
+    },
+    {
+      "id": 30,
+      "prompt": "An existing Go service uses golang-migrate and a documented deployment command for schema changes. Add a migration for a new nullable users column, keeping the existing process.",
+      "expected_output": "The migration follows the existing tool, file conventions, and deployment process without introducing Goose.",
+      "assertions": [
+        "Adds the schema change using the existing golang-migrate format and directory",
+        "Preserves the existing migration command and deployment process",
+        "Does not introduce Goose or move existing migrations",
+        "Considers existing production data and the impact of the schema change"
+      ],
+      "setup": "Disposable Go service with an existing PostgreSQL users table, golang-migrate files, and a documented deployment command."
     }
   ]
 }

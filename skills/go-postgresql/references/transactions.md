@@ -19,14 +19,17 @@ func createOrder(ctx context.Context, pool *pgxpool.Pool, customerID int64) (int
 
     var orderID int64
     err = tx.QueryRow(ctx,
-        `INSERT INTO orders (customer_id) VALUES ($1) RETURNING id`, customerID,
+        `INSERT INTO orders (customer_id)
+        VALUES ($1)
+        RETURNING id`, customerID,
     ).Scan(&orderID)
     if err != nil {
         return 0, fmt.Errorf("create order: %w", err)
     }
 
     _, err = tx.Exec(ctx,
-        `INSERT INTO order_events (order_id, event) VALUES ($1, $2)`, orderID, "created",
+        `INSERT INTO order_events (order_id, event)
+        VALUES ($1, $2)`, orderID, "created",
     )
     if err != nil {
         return 0, fmt.Errorf("create order event: %w", err)
