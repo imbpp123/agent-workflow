@@ -27,6 +27,8 @@ For schema changes, consider production data and locking, and require appropriat
 
 ### Rules
 
+- Follow the project's migration test boundary. For schema-only migrations, check successful application with the real migration command on a disposable database. Do not add catalog inspection tests for every table, column, or index unless required. Test migration runner logic separately. When a migration transforms existing data, verify the required result using representative existing data.
+- Before adding a constraint that creates an index, identify the invariant it enforces and the index it requires. For a material trade-off, explain the cost and alternative, including any guarantee lost without the constraint.
 - When creating a table, add a PostgreSQL comment explaining its purpose.
 - When creating or adding a column, add a PostgreSQL comment explaining its meaning and use.
 - For each explicitly created index, add a PostgreSQL comment explaining the query or constraint it supports. Review the comment when queries change. Indexes automatically created for `PRIMARY KEY` and `UNIQUE` constraints do not need separate comments.

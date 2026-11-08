@@ -15,6 +15,10 @@ description: Deliver a coding task with explicit acceptance criteria, verificati
 Use relevant specialist skills for the language and work when available.
 For risky architecture decisions, request a fresh review when available and authorized: provide the problem and source, not your conclusion. Treat findings as hypotheses and verify them.
 
+## Rules
+
+- Before adding or extending behavior or storage, identify the current requirement it serves. Do not add functionality solely for a possible future use.
+
 # After acceptance
 
 Use `retro` when the user accepts or abandons a substantial task: a return, a pipeline change, or an unexpected result. Keep the report short. Do not interrupt active work to demand a retro.

@@ -360,6 +360,61 @@
         "Considers existing production data and the impact of the schema change"
       ],
       "setup": "Disposable Go service with an existing PostgreSQL users table, golang-migrate files, and a documented deployment command."
+    },
+    {
+      "id": 31,
+      "prompt": "Add a schema-only migration for a new nullable column. The project tests migration application with its migration command and does not inspect the database catalog. Keep that test boundary.",
+      "expected_output": "The migration follows the project test boundary and is applied on a disposable database.",
+      "assertions": [
+        "Runs the real migration command against a disposable database",
+        "Does not add catalog inspection tests for the new column",
+        "Reports an unavailable database rather than claiming the migration was verified"
+      ],
+      "setup": "Disposable Go service with PostgreSQL, existing migration command and a documented migration test boundary."
+    },
+    {
+      "id": 32,
+      "prompt": "Add a migration that changes existing customer names from separate first and last name columns to a full name column. Verify that existing names survive the upgrade.",
+      "expected_output": "The migration is checked against representative existing data, including the resulting names.",
+      "assertions": [
+        "Applies the migration to a disposable database containing representative existing rows",
+        "Checks the transformed data rather than only migration success",
+        "Reports missing PostgreSQL verification if the database is unavailable"
+      ],
+      "setup": "Disposable Go service with PostgreSQL, a migration command and an existing customer schema."
+    },
+    {
+      "id": 33,
+      "prompt": "Add a migration with a unique constraint that must reject duplicate account names for the same owner. Verify the requested constraint behavior.",
+      "expected_output": "The migration and the requested constraint behavior are checked on PostgreSQL.",
+      "assertions": [
+        "Applies the migration using the project command on a disposable database",
+        "Checks that duplicate names for the same owner are rejected",
+        "Does not treat migration success alone as proof of the requested constraint behavior"
+      ],
+      "setup": "Disposable Go service with PostgreSQL and an existing migration command."
+    },
+    {
+      "id": 34,
+      "prompt": "Design how to prevent an operation from referencing another user's category in a PostgreSQL service. The category ID is already a primary key. Compare enforcing ownership in PostgreSQL with checking it in the application.",
+      "expected_output": "The design explains the ownership guarantee and the cost of a composite key and its index, with the alternative's limits.",
+      "assertions": [
+        "Identifies how a composite foreign key enforces ownership and the supporting unique key and index it requires",
+        "Explains index storage and write costs and the weaker database guarantee of application-only checks",
+        "Does not reject a composite key merely because the ID is already unique"
+      ],
+      "setup": "Go service with PostgreSQL operations and categories; both records have an owner and category ID is a primary key."
+    },
+    {
+      "id": 35,
+      "prompt": "A PostgreSQL table has a primary key on id. Add a unique constraint on email to enforce the current product requirement that no two accounts share an email address.",
+      "expected_output": "The migration enforces the required uniqueness using the existing project conventions.",
+      "assertions": [
+        "Adds a unique constraint for the required invariant",
+        "Recognizes that PostgreSQL creates a supporting index",
+        "Does not avoid the constraint solely because it creates an index"
+      ],
+      "setup": "Disposable Go service with PostgreSQL accounts table and an existing migration process."
     }
   ]
 }
