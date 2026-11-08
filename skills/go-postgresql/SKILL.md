@@ -25,6 +25,14 @@ Follow an existing project's migration process; do not replace its tool or layou
 
 For schema changes, consider production data and locking, and require appropriate review. Do not change schema unless the task calls for it.
 
+### Rules
+
+- When creating a table, add a PostgreSQL comment explaining its purpose.
+- When creating or adding a column, add a PostgreSQL comment explaining its meaning and use.
+- For each explicitly created index, add a PostgreSQL comment explaining the query or constraint it supports. Review the comment when queries change. Indexes automatically created for `PRIMARY KEY` and `UNIQUE` constraints do not need separate comments.
+- Use UUID for primary keys, entity identifiers, and references to them.
+- Generate identifiers in the application and pass them to PostgreSQL; do not generate them in the database.
+
 ## References
 
 - [SQL formatting](references/sql-formatting.md): layout for migrations and queries.

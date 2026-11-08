@@ -6,11 +6,16 @@ For table definitions, put the opening parenthesis after the table name, each co
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY,
     email TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT users_email_unique UNIQUE (email)
 );
+
+COMMENT ON TABLE users IS 'Accounts that can access the application';
+COMMENT ON COLUMN users.id IS 'Application-generated account identifier';
+COMMENT ON COLUMN users.email IS 'Email address used to contact the account owner';
+COMMENT ON COLUMN users.created_at IS 'Time when the account was created';
 ```
 
 Apply the same layout in SQL files and Go raw strings. For queries, separate clauses and put multiple selected columns or conditions on their own lines:
