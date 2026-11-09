@@ -13,6 +13,9 @@ Read README.md before changing this repository.
 - Keep runtime data, personal paths, and secrets out of Git.
 - Do not change global Codex settings as a side effect of editing this repo.
 - Do not commit or push unless the user asks. A retro does not imply publication.
-- Report what changed, checks run, and limits. Do not claim a live hook test from a unit test.
+- Before making changes, state the expected behavior and how to check it.
+- Verify the change through the command, route, binary, or UI that users actually use.
+- Report what changed, which checks ran, and what remains unverified.
+- Do not claim a live hook test from a unit test.
 
 Use `skills/agent-workflow/SKILL.md` for task delivery and `skills/retro/SKILL.md` after acceptance.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Link shared skills and merge context hooks. Dry run unless --apply is set."""
+"""Link shared skills and optionally merge context hooks. Dry run unless --apply is set."""
 from __future__ import annotations
 
 import argparse
@@ -51,7 +51,7 @@ def hook_config(path, repo):
     return config
 
 
-def plan(target, repo=ROOT):
+def plan(target, repo=ROOT, *, with_hooks=False):
     target, repo = Path(target).expanduser().resolve(), Path(repo).resolve()
     sources = sorted(p for p in (repo / "skills").iterdir() if p.is_dir() and (p / "SKILL.md").is_file())
     if not sources:
@@ -64,9 +64,10 @@ def plan(target, repo=ROOT):
         if dest.exists() or dest.is_symlink():
             raise ValueError("skill already exists; no files replaced: " + str(dest))
         links.append((source, dest))
-    hooks_file = target / ".codex/hooks.json"
-    config = hook_config(hooks_file, repo)
-    return links, hooks_file, config
+    if with_hooks:
+        hooks_file = target / ".codex/hooks.json"
+        return links, hooks_file, hook_config(hooks_file, repo)
+    return links, None, None
 
 
 def write_json(path, value):
@@ -86,15 +87,15 @@ def write_json(path, value):
             os.unlink(tmp)
 
 
-def install(target, repo=ROOT, apply=False):
-    links, path, config = plan(target, repo)
+def install(target, repo=ROOT, apply=False, *, with_hooks=False):
+    links, path, config = plan(target, repo, with_hooks=with_hooks)
     if apply:
         for source, dest in links:
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.symlink_to(source, target_is_directory=True)
-        if not path.exists() or json.loads(path.read_text(encoding="utf-8")) != config:
+        if path is not None and (not path.exists() or json.loads(path.read_text(encoding="utf-8")) != config):
             write_json(path, config)
-    return {"applied": apply, "new_links": [str(dest) for _, dest in links], "hooks": str(path)}
+    return {"applied": apply, "new_links": [str(dest) for _, dest in links], "hooks": str(path) if path is not None else None}
 
 
 def main(argv=None):
@@ -102,15 +103,16 @@ def main(argv=None):
     scope = parser.add_mutually_exclusive_group(required=True)
     scope.add_argument("--project", type=Path)
     scope.add_argument("--global", dest="user", action="store_true")
+    parser.add_argument("--with-hooks", action="store_true", help="Install context hooks as well as skills")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)
     try:
         if os.name == "nt":
-            raise ValueError("automatic hook installation currently supports macOS/Linux; use manual setup on Windows")
+            raise ValueError("automatic installation currently supports macOS/Linux; use manual setup on Windows")
         target = Path.home() if args.user else args.project
         if not target.is_dir():
             raise ValueError("target directory must exist")
-        print(json.dumps(install(target, apply=args.apply), ensure_ascii=False, indent=2))
+        print(json.dumps(install(target, apply=args.apply, with_hooks=args.with_hooks), ensure_ascii=False, indent=2))
         return 0
     except (ValueError, OSError) as error:
         print("install: " + str(error), file=sys.stderr)
