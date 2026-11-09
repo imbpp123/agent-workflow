@@ -64,4 +64,4 @@ Record one cause per return. Cause classes are `verification`, `knowledge`, `sco
 python3 -m unittest discover -s tests -v
 ```
 
-Tests use temporary directories and do not verify live hook delivery in Codex. Skill evaluation instructions are in each Go skill's `evals/README.md`; the [PostgreSQL guide](skills/go-postgresql/evals/README.md) also documents `scripts/eval_postgresql.py`.
+Tests use temporary directories and do not verify live hook delivery in Codex. Skill evaluation instructions are in each Go skill's `evals/README.md`.
