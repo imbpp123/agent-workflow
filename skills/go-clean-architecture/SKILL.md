@@ -5,20 +5,58 @@ description: Use when designing, implementing, or reviewing a Go application tha
 
 # Clean Architecture in Go
 
-Apply these rules when Clean Architecture is requested or already used. Otherwise, follow the project's existing architecture. Go imports point inward: infrastructure and delivery depend on application and domain, never the reverse. An outer adapter implements a port defined by its inner consumer, so the use case can call external capabilities without importing their implementations.
+Use these rules when the project uses Clean Architecture or the user asks for it. Otherwise, follow the project's current architecture.
+
+- Follow the project's Go version and package layout.
+- Group packages by responsibility. Add a layer only when it has a clear purpose.
+- Keep existing boundaries during focused changes. Do not force a fixed folder structure.
 
 ## Boundaries
 
-- **Domain:** entities and value objects own business rules and invariants. Enforce state changes through domain behavior. Keep SQL, HTTP, frameworks, and infrastructure models out of the domain.
-- **Domain service:** holds a business rule or calculation that does not naturally belong to one entity or value object, such as a pricing rule involving several domain objects. Use domain types; keep persistence, transport, and use-case orchestration out. Do not create a service when an entity or value object owns the rule.
-- **Application service / use case:** orchestrates one application operation: obtain data through ports, call domain behavior, persist results, and coordinate transactions or external effects as needed. It controls the workflow; domain invariants stay in the domain. Define small interfaces at the consumer boundary when needed; do not create an interface for every type.
-- **Repositories:** implement persistence with SQL, data mapping, transactions, and persistence error translation. Do not make business decisions or orchestrate use cases here.
-- **Delivery and external adapters:** handlers translate requests, responses, and errors; clients translate external APIs. Delegate business decisions to the application or domain.
-- **Composition root:** construct and connect concrete dependencies at the application entry point. Do not require a DI framework.
+- Keep imports pointing inward. Infrastructure and delivery can import application and domain. Application can import domain. Domain must not import application. Neither application nor domain may import infrastructure or delivery.
+- When one module calls a service in another module, use an interface. Define it in the package that calls the service.
+- Include only the methods the caller needs.
+- Use data types and pure functions directly when the import direction is allowed.
+- Define ports in the inner layer that needs them. A port is an interface for an external capability. Implement it in an outer adapter.
+- Create and connect dependencies with constructors or factory functions at the application entry point. Do not use a DI framework.
 
-Validate request shape in delivery adapters and business invariants in the domain, so all entry points enforce the same rules. When a rule needs external data, the use case obtains it through a port and passes it to domain behavior. Use atomic storage constraints or concurrency control when needed to protect invariants across concurrent requests.
+## Domain
 
-Keep transport, database, and driver types out of domain and application contracts; use boundary data types when needed, not a separate DTO for every entity. Translate expected errors at boundaries without turning unexpected infrastructure failures into business outcomes or exposing internal details. Let the use case define the atomic operation and infrastructure manage its transaction, including across repositories, through an application port rather than a driver transaction type. A database transaction cannot make an external API call atomic; account for retries, idempotency, and partial failures.
+- Put business rules in entities and value objects. Change state through domain behavior. Reject changes that break business rules.
+- Use a domain service only when a business rule or calculation does not belong to one entity or value object.
+- Use domain types in domain services. Keep persistence, transport, and use case steps out of them.
+- Keep SQL, HTTP, frameworks, and infrastructure models out of the domain.
 
-Follow the project's Go version and package layout. Organize packages around responsibilities; do not impose a fixed directory tree or add layers for their own sake. Preserve existing boundaries during focused changes. Test domain rules and invalid states without infrastructure; test use cases with substitute ports, including dependency failures. Use integration tests for actual adapters, SQL, and transaction boundaries.
+## Application services
 
+- Use an application service to run one use case. Load data and save results through ports when needed. Call domain behavior to apply business rules.
+- Coordinate transactions and external calls here when the use case needs them.
+- When a business rule needs external data, load it through a port. Pass the data to the domain to apply the rule.
+
+## Repositories and adapters
+
+- Use repositories for SQL, data mapping, database transactions, and storage error translation.
+- Use handlers to read requests and build responses. Map errors to the response contract.
+- Use external clients to map requests and responses for external APIs.
+- Keep business decisions and use case steps out of repositories and adapters. Delegate them to application or domain code.
+- Check request format in delivery adapters. Check business rules in the domain so all entry points use the same rules.
+
+## Data and errors
+
+- Keep transport, database, and driver types out of domain and application contracts.
+- Add data types for a boundary when needed. Create a separate DTO only when that boundary needs it.
+- Translate expected errors at module boundaries. Keep unexpected infrastructure failures distinct from business results.
+- Keep internal error details out of public responses.
+
+## Transactions and external calls
+
+- Let the use case define which changes must succeed or fail together.
+- Let infrastructure manage the database transaction through an application port. Include all repository writes that must succeed or fail together. Keep driver transaction types out of the application contract.
+- Use atomic storage constraints or concurrency control when needed to protect business rules during concurrent requests.
+- A database transaction cannot make an external API call part of the same atomic operation. Handle retries and partial failures. Use idempotency to prevent duplicate effects when a request is repeated.
+
+## Tests
+
+- Test domain rules and invalid states without infrastructure.
+- Test use cases with test implementations of their ports. Cover dependency failures.
+- Use integration tests for real adapters, SQL, and transaction boundaries.
