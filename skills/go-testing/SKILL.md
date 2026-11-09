@@ -14,6 +14,7 @@ This skill covers test design, fakes, mocks, Testify, check commands, and report
 - Test observable non-trivial behavior, edge cases, and failure paths. Use table-driven tests when they make cases clearer.
 - Prefer a simple fake or stub when only the result matters. Use mock expectations when the interaction is part of the contract.
 - Follow the existing project's test style and dependencies. Do not add Testify to an existing project only for this skill.
+- Keep focused unit tests in the matching `*_test.go` file beside the source. When moving, extracting, or renaming source, move its focused tests in the same change. Keep shared test helpers with their users and preserve the project's separate integration-test layout.
 - For a new project with no test approach, use `github.com/stretchr/testify` if dependency rules allow it. Choose a version that supports the project's Go version. Check `go.mod` and `go.sum` for unrelated upgrades.
 - With Testify, use `assert` for independent checks. Use `require` when failure makes later checks unsafe or meaningless. Call `require` from the test goroutine, not a worker.
 - Keep tests deterministic. Use controlled dependencies and explicit signals instead of public network calls or sleeps for ordering. Use timeouts to bound waits. Clean up and wait for goroutines started by the test, including after a failed check.

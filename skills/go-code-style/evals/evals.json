@@ -285,6 +285,26 @@
         "Uses a verb-led name that makes the account-ID filter clear, such as ListByAccountID"
       ],
       "setup": "Go API design sketch with existing BankAccountRepository methods FindAccount(ctx context.Context, id string) (BankAccount, error) and ListAccounts(ctx context.Context) ([]BankAccount, error). The new transaction query returns []Transaction and an error. No conflicting project naming rule is present."
+    },
+    {
+      "id": 25,
+      "prompt": "Extract the preview controller from api.go into preview.go. Follow the project's code style. Preserve the HTTP contract and public Go APIs. Keep the refactor focused and verify it.",
+      "additional_skills": [
+        "agent-workflow",
+        "go-testing"
+      ],
+      "setup": "Disposable standard-library Go module. AGENTS.md requires one field per line in non-empty struct literals, one parameter or argument per line when there are more than five, readable shorter signatures and calls on one line, and blank lines between distinct steps. api.go contains NewRouter, public Summary and PreviewService types, a health handler, and a private preview controller with request and response DTOs and a six-parameter response mapper. The controller decodes JSON, rejects a blank name, checks cancellation, calls a service, builds the response, and writes JSON. Its initial literals and six-parameter mapper are compact and its steps lack blank lines. response.go has a shared JSON writer used by both routes. api_test.go contains preview and health tests with a shared service stub. Existing tests pass through NewRouter for success, invalid JSON, blank input, cancellation, service failure, and health. README.md defines the exact response bodies and status codes. No separate integration-test layout is imposed.",
+      "expected_output": "The controller, its private DTOs and mapper, and its focused tests move together. Project style and HTTP behavior are preserved, with shared code kept available to both routes.",
+      "assertions": [
+        "Places the preview controller, its private request and response types, and its single-use mapper in preview.go without adding exported declarations",
+        "Moves preview tests to preview_test.go and keeps health tests in api_test.go. Keeps the shared test stub available to both without duplication",
+        "Keeps the shared JSON writer usable by both routes and preserves public APIs, routes, exact response bodies, and status codes",
+        "Separates decoding, cancellation, service work, and response assembly with blank lines and keeps each call beside its error check",
+        "Applies the explicit literal and six-parameter formatting rules to changed code while keeping readable short signatures and calls compact",
+        "Keeps unrelated health behavior, shared production helpers, project rules, and dependencies unchanged. Avoids unrelated edits within changed files",
+        "Runs tests through NewRouter for success, invalid JSON, blank input, cancellation, service failure, and health, plus gofmt and go vet checks",
+        "Reviews the final changes for file placement, project style, and scope and reports any unverified checks"
+      ]
     }
   ]
 }

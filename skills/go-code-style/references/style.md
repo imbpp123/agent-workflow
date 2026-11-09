@@ -90,7 +90,9 @@ Moving `hasPermission` into a variable before the condition would call it even w
 ## Layout and organization
 
 - Break long lines where it makes the code easier to read. Do not split calls or redesign APIs only to meet a line length or parameter count without a project rule.
-- Group related declarations. Keep helpers near the code that uses them where practical. Keep names unexported unless another package needs them.
+- Separate distinct steps with blank lines. Keep a call next to its error check. After `gofmt`, review the changed code for block spacing and project rules for literals, signatures, and calls.
+- Group related declarations. By default, keep private types and helpers used by one controller or component in its file. Move them with that code. If several components use them, keep them in a shared file. Follow explicit project layout rules and generated-file boundaries.
+- Keep names unexported unless another package needs them.
 - Avoid dot imports. Use blank imports only when their side effects are needed and clear.
 - Use comments to explain intent or a constraint that the code does not show. Remove comments that only repeat the code.
 

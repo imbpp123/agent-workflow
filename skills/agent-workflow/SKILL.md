@@ -10,7 +10,8 @@ description: Deliver a coding task with explicit acceptance criteria, verificati
 3. Choose technical details yourself. For taste or ambiguous product behavior, show a small preview or options with a recommendation before building the full result.
 4. Make the smallest sufficient change. Cover non-trivial logic with deterministic unit tests, including edge and failure cases.
 5. Verify through the entry point used by the user: the actual command, route, binary, or UI. A fixture that constructs a correct result cannot prove that the shipped path creates it. Unit tests and integration checks serve different purposes.
-6. Report changed behavior, files, checks, and remaining limits. If an environment or service is missing, distinguish what ran from what remains unverified. Do not call an untested scenario fixed.
+6. Review the final diff against the task and project rules after automated checks. Check file organization, related tests, and manual style rules. Remove unrelated edits you introduced, including those inside changed files. Preserve existing user changes.
+7. Report changed behavior, files, checks, and remaining limits. If an environment or service is missing, distinguish what ran from what remains unverified. Do not call an untested scenario fixed.
 
 Use relevant specialist skills for the language and work when available.
 For risky architecture decisions, request a fresh review when available and authorized: provide the problem and source, not your conclusion. Treat findings as hypotheses and verify them.

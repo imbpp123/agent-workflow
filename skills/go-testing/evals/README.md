@@ -4,6 +4,8 @@
 
 A case may list `additional_skills`. Give the fresh candidate those skills and their relevant references along with this skill. Keep the task and constraints unchanged. The combined blocked-worker case is case 7 in [go-concurrency evaluations](../../go-concurrency/evals/evals.json); it also loads `go-testing`.
 
+The combined controller extraction case is case 25 in [Go code style evaluations](../../go-code-style/evals/evals.json). It checks that focused tests move with their source while shared helpers and unrelated tests keep their proper place.
+
 To run a case in the Codex app, ask: `Run go-testing eval case 1 locally using my current Codex session. Do not use an API key or GitHub Actions.` Replace the case number or request all cases.
 
 For each case:

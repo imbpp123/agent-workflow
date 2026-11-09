@@ -6,6 +6,8 @@ These are scenario descriptions, not executable tests or prepared Go fixtures. A
 
 A case may list `additional_skills`. Supply those skills and their relevant references together with this skill. Keep the case's task and constraints the same when checking their combined effect.
 
+Case 25 combines controller extraction, private declarations, test placement, project formatting, and final diff review. It also uses `agent-workflow` and `go-testing`. Check file placement and scope as well as the HTTP tests.
+
 ## Run a case in the Codex app
 
 Ask Codex in this repository: `Run go-code-style eval case 1 locally using my current Codex session. Do not use an API key or GitHub Actions.` Replace the case number or request all cases as needed.
