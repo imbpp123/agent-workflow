@@ -3,14 +3,15 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "In a Go service using Clean Architecture, implement order cancellation. An order can be cancelled unless it is already shipped; a shipped order must stay unchanged. Both HTTP POST /orders/{id}/cancel and a CLI command can request cancellation. Add tests for a cancellable order, a shipped order, and a repository failure.",
+      "prompt": "In a Go service using Clean Architecture, implement order cancellation. An order can be cancelled unless it is already shipped. A shipped order must stay unchanged, including when shipping races with cancellation. Both HTTP POST /orders/{id}/cancel and a CLI command can request cancellation. Add tests for success, a shipped order, a repository failure, and concurrent shipping.",
       "setup": "Disposable empty Go project using the standard library. An in-memory repository is allowed; no live database is required.",
       "expected_output": "Both entry points use the same application operation and domain invariant; failure does not masquerade as success.",
       "assertions": [
         "The shipped-order rule is enforced in domain behavior and a rejected cancellation leaves the order unchanged",
         "Both HTTP and CLI entry points delegate to the use case rather than owning separate business rules",
         "The use case works through a consumer-side persistence port and does not import HTTP or SQL implementations",
-        "Tests cover successful cancellation, the shipped invariant, and a repository failure"
+        "Tests cover successful cancellation, the shipped invariant, and a repository failure",
+        "A stale cancellation cannot overwrite a shipped order. A deterministic test controls the order of reads and writes with channels or another explicit barrier. It checks the stored state and result without sleeps. A lock or an atomic conditional write is acceptable"
       ]
     },
     {
@@ -64,13 +65,49 @@
     {
       "id": 6,
       "prompt": "Review a Go service where the HTTP handler validates an order's business rules and runs SQL before sending a response. Propose a focused Clean Architecture refactor and show the package dependencies and wiring. Keep the existing public HTTP contract and avoid unrelated changes.",
-      "setup": "Disposable Go module with POST /orders/{id}/cancel: the handler reads status using database/sql, returns 409 for shipped, otherwise updates status to cancelled and returns 204. SQL errors, including missing rows, return 500. Review and propose a refactor; do not modify the code.",
+      "setup": "Disposable Go module with POST /orders/{id}/cancel. The handler reads status using database/sql, returns 409 for shipped, otherwise updates status to cancelled and returns 204. SQL errors, including missing rows, return 500. The module has no DI framework. Dependency choices are open. Review and propose a refactor. Do not modify the code.",
       "expected_output": "The refactor moves responsibilities to the correct existing boundaries, keeps imports inward, and wires concrete adapters at the entry point.",
       "assertions": [
         "The handler translates HTTP input and output and delegates to an application operation without executing SQL or owning the business rule",
         "Domain behavior owns the business invariant and the repository owns persistence",
         "The use case depends on consumer-defined ports, the PostgreSQL adapter implements them, and concrete dependencies are wired at the entry point",
-        "The existing HTTP contract is preserved and the proposal does not mandate a new layer, framework, or interface for every type"
+        "The existing HTTP contract is preserved and the proposal does not require a new layer or an interface for every type",
+        "Dependencies are connected with constructors or factory functions. The proposal does not add, use, or recommend a DI framework"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Move the user HTTP handler into its own package in this Go service. The project uses Clean Architecture. Keep the current route, response, and router entry point. Add tests for a found user and a service error.",
+      "setup": "Disposable Go module. The root package has NewRouter(service *application.UserService) http.Handler and a handler with a *application.UserService field. GET /users/{id} calls FindUser(context.Context, string) (application.UserSummary, error). UserSummary has FirstName and LastName fields. The handler passes them to the pure domain.DisplayName function and writes the result with a newline and status 200. A service error returns 500 with the body 'internal error' and a newline. UserService also has SaveUser and DeleteUser methods that the handler does not use. Domain and application have no outward imports. The service can use an in-memory map. Dependency choices are open.",
+      "expected_output": "The new handler package owns a small service interface. It keeps the existing data type and pure function. The root connects the concrete service to the handler.",
+      "assertions": [
+        "The handler package defines the interface it calls. Its field and constructor use that interface. The interface contains FindUser and excludes unused service methods",
+        "The service contract uses application.UserSummary directly. The handler calls domain.DisplayName directly. No duplicate data type or interface wrapper is added for them",
+        "Tests pass a separate service implementation through the handler constructor. They exercise the real route for success and service failure",
+        "The route, response, and root NewRouter signature are preserved. Imports stay inward and no DI framework is added"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Fix the user lookup boundary in this Go service. The project uses Clean Architecture, but the application handles SQL rows. Keep the HTTP response contract. Add tests for a found user, a missing user, and storage failures.",
+      "setup": "Disposable Go module using database/sql. application.UserReader has Query(context.Context, int64) (*sql.Rows, error). application.Lookup reads and scans the rows into domain.User, closes them, and checks Rows.Err. The SQL adapter only runs SELECT id, name FROM users WHERE id = $1. GET /users/{id} returns the user as JSON with status 200, a missing user as 404, and a storage error as 500 with a fixed public message. Domain and HTTP code already exist. A test driver is allowed. No live database is required.",
+      "expected_output": "The application owns a port with application or domain types. The SQL adapter owns query execution, row scanning, row cleanup, and storage error translation.",
+      "assertions": [
+        "Application and domain have no database/sql import or SQL row or driver types in their contracts. A type alias or wrapper does not hide the same dependency",
+        "The SQL adapter scans and closes rows and handles query, scan, and iteration errors. Missing data is mapped to the application contract",
+        "The application uses its own port. HTTP still returns 200 for a user, 404 for absence, and a fixed 500 response for a technical failure",
+        "Tests cover found and missing users, query failure, scan failure, and row iteration failure. Technical errors stay distinct from absence and do not leak to HTTP"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Fix name validation in this small Go HTTP service. A blank name, including whitespace only, must return 400. Keep the current success response and add tests for both paths.",
+      "setup": "Disposable Go module using the standard library. The project uses one package and has no Clean Architecture layers. NewRouter() http.Handler registers POST /hello. The handler reads the name query parameter and writes 'Hello, ' plus the name and a newline with status 200. A blank name currently succeeds. For invalid input, return 400 with 'name is required' and a newline. Valid names keep their original spacing. The task does not request an architecture change.",
+      "expected_output": "A small validation fix keeps the current package layout and response contract.",
+      "assertions": [
+        "Empty and whitespace-only names return 400. Valid names keep status 200 and the existing body, including their spacing",
+        "Tests use the real router and cover empty, whitespace-only, and valid names",
+        "The existing package layout and NewRouter signature are preserved. No domain layer, application layer, service interface, DTO, or DI framework is added for this fix"
       ]
     }
   ]
