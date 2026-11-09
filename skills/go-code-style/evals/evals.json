@@ -260,6 +260,31 @@
         "Keeps the helper unexported and does not introduce an external dependency"
       ],
       "setup": "Disposable Go package with existing formatting tests specifying the exact output for name and age."
+    },
+    {
+      "id": 23,
+      "prompt": "Design a BankAccountRepository that can get a bank account by ID, list accounts, save an account, and list transactions for an account. Show an accountService with this dependency and its constructor signature. Also show a copyService with source and target repositories and its constructor signature. Show calls that read one account, list accounts, and list transactions. Pick readable names. Provide declarations and call-site sketches only.",
+      "expected_output": "Repository names use the plural domain entity. Methods name the action and make the result clear.",
+      "assertions": [
+        "Uses plural domain entity names for repository fields and parameters, such as bankAccounts",
+        "Uses role names with plural entities for source and target dependencies",
+        "Uses verbs for methods and omits the repeated account entity name from GetByID, List, and Save",
+        "Keeps the transaction entity name in the method that lists transactions",
+        "Keeps the result collection name distinct from the repository name in the same scope"
+      ],
+      "setup": "New Go package with BankAccount and Transaction types. IDs are strings. Repository operations accept context.Context and return errors. Review the API sketch without adding storage code."
+    },
+    {
+      "id": 24,
+      "prompt": "An existing BankAccountRepository exposes FindAccount and ListAccounts. Add a private service field and constructor parameter for this dependency, and show how the service calls both methods. Also sketch a new transactionRepository that lists transactions by account ID. Keep the existing exported interface unchanged.",
+      "expected_output": "New names follow the repository convention while existing public methods stay compatible. The transaction query keeps its filter clear.",
+      "assertions": [
+        "Uses a plural domain entity name for the new account repository field and constructor parameter",
+        "Keeps FindAccount and ListAccounts unchanged and calls them directly",
+        "Does not add a wrapper only to rename existing methods",
+        "Uses a verb-led name that makes the account-ID filter clear, such as ListByAccountID"
+      ],
+      "setup": "Go API design sketch with existing BankAccountRepository methods FindAccount(ctx context.Context, id string) (BankAccount, error) and ListAccounts(ctx context.Context) ([]BankAccount, error). The new transaction query returns []Transaction and an error. No conflicting project naming rule is present."
     }
   ]
 }

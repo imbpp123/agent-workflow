@@ -114,13 +114,14 @@
       "prompt": "Implement creation of an order and an audit event in an existing pgx service. If the request is canceled while writing, make a bounded attempt to clean up the transaction. Use the service logger and keep the original error.",
       "expected_output": "The operations share a transaction and request context; cleanup remains bounded after cancellation.",
       "assertions": [
+        "Accepts the supplied UUID order and customer IDs and inserts the order ID explicitly",
         "All related writes use the same transaction",
         "Begin, statements, and commit use the request context",
         "Rollback uses a separate bounded context that can run after request cancellation",
         "Treats pgx.ErrTxClosed as expected after commit and reports other rollback failures without replacing the original error",
         "Does not log raw rollback errors or sensitive markers contained in them"
       ],
-      "setup": "Disposable pgx service with orders and audit event tables and an existing logger. Its test fixture can return a rollback error containing a synthetic sensitive marker and capture log output."
+      "setup": "Disposable pgx service with orders and audit event tables and an existing logger. Order and customer IDs use the existing application UUID type. The application supplies both IDs, and orders.id has no database default. Its test fixture can return a rollback error with a synthetic sensitive marker and capture log output."
     },
     {
       "id": 11,
@@ -415,6 +416,52 @@
         "Does not avoid the constraint solely because it creates an index"
       ],
       "setup": "Disposable Go service with PostgreSQL accounts table and an existing migration process."
+    },
+    {
+      "id": 36,
+      "prompt": "Add a new orders table and a Go repository method that creates an order for an existing customer. The application already uses a UUID type and generator. Include the schema migration and the application call that creates the order. Keep the current database and UUID libraries.",
+      "expected_output": "The new entity uses an application-generated UUID. The repository accepts that ID and inserts it explicitly.",
+      "assertions": [
+        "Uses UUID for the new order primary key and its reference to the UUID customer ID",
+        "Uses the existing UUID type and generator in application code without adding a new UUID library",
+        "Passes the generated order ID to the repository and explicitly includes it in the INSERT",
+        "Does not add a database ID default or use a database ID generator",
+        "Adds PostgreSQL comments for the table and columns and follows the existing migration process",
+        "Tests the real repository against a UUID schema with no ID default and confirms that the supplied ID is stored"
+      ],
+      "setup": "Disposable Go module with native pgx v5, an existing UUID package and generator, customers(id UUID PRIMARY KEY), a migration command, and a disposable PostgreSQL database. No orders table exists."
+    },
+    {
+      "id": 37,
+      "prompt": "Add GetByID to an existing customer repository and cover success, absence, and query failure. Keep this focused on the lookup and tests. The customer API uses int64 IDs and the database stores BIGINT IDs.",
+      "expected_output": "The lookup keeps the existing ID contract and schema. It does not turn the change into an identifier migration.",
+      "assertions": [
+        "Keeps int64 in the existing customer contract and binds the ID as a query parameter",
+        "Keeps the BIGINT schema and does not add an ID migration or UUID dependency",
+        "Preserves the existing not-found and technical-error contracts",
+        "Covers success, absence, and query failure with the project test setup"
+      ],
+      "setup": "Disposable Go module with native pgx v5, customers(id BIGINT PRIMARY KEY, name TEXT NOT NULL), and a customer port that uses int64. The repository returns ErrCustomerNotFound for absence and ErrStorage for unexpected failures. Existing unit fakes and a PostgreSQL test fixture are available."
+    },
+    {
+      "id": 38,
+      "additional_skills": [
+        "go-code-style",
+        "go-clean-architecture"
+      ],
+      "prompt": "Sketch order placement for a Go service that uses Clean Architecture and PostgreSQL. Placing an order also stores an order event. If the event write fails, no new order may remain. Show concrete package boundaries, Go interfaces and method signatures, constructor wiring, and the two INSERT statements. Explain transaction wiring and error handling. A full application is not needed.",
+      "expected_output": "The design uses clear repository names, an application-owned atomic operation, and a PostgreSQL adapter that hides driver types.",
+      "assertions": [
+        "Names repository variables, fields, and parameters after plural entities, such as orders and orderEvents, with verb-led methods and separate names for result collections",
+        "Defines transaction and repository ports in the inner layer that uses them and keeps SQL, pgx.Tx, pool types, and driver errors out of domain and application contracts",
+        "Makes the application decide that both writes belong to one operation while infrastructure opens, commits, and rolls back the transaction",
+        "Shows how both repository writes receive the same SQL transaction, without a write through the pool inside that operation",
+        "Accepts application-supplied UUID identifiers and inserts them explicitly without database generation",
+        "Maps repository errors without exposing pgx types through wrapping, and keeps internal diagnostics safe",
+        "Keeps cleanup bounded after cancellation and distinguishes known rollback from an uncertain commit",
+        "Describes a real PostgreSQL check for successful atomic writes and rollback when the event write fails without claiming those checks ran"
+      ],
+      "setup": "Disposable design context for a Clean Architecture service. It uses native pgx v5 and an existing application UUID type. Existing orders and order_events tables use UUID identifiers with no ID defaults. The repository contract forbids driver types in returned values and error chains. No existing service, repository field names, or transaction abstraction are imposed. Supply go-postgresql plus the two skills in additional_skills. This case asks for a concrete design sketch, not a running service."
     }
   ]
 }

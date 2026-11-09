@@ -56,8 +56,8 @@
       "expected_output": "A deterministic test uses a controlled dependency and observes shutdown.",
       "assertions": [
         "Replaces public network access with a controlled dependency or local test server",
-        "Uses explicit coordination instead of sleeps to establish ordering",
-        "Cancels the worker and waits for its completion with bounded failure protection",
+        "Waits for an explicit signal from the controlled dependency before canceling, instead of using sleeps for ordering",
+        "Cancels the worker and observes its completion with bounded waits; cleanup also releases and waits for started work after a failed check",
         "Runs the affected tests and go test -race on a supported platform, or reports why not; does not claim the race detector proves every path is safe"
       ]
     },

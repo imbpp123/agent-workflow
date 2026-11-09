@@ -1,12 +1,14 @@
 # Transactions
 
-Use one transaction for operations that must succeed or fail together. This example creates an order and its audit record with pgx v5 and Go 1.21 or later; imports and schema are omitted.
+Use one transaction for operations that must succeed or fail together. The application decides which writes form one operation. The database adapter runs them in one SQL transaction and keeps driver types private. Use [go-clean-architecture](../../go-clean-architecture/SKILL.md) for these application boundaries when available.
+
+This private adapter helper creates an order and its audit event. It uses native pgx v5. Its cleanup code needs Go 1.21 or later; check the chosen pgx release's Go requirement too. Imports and schema are omitted. Both IDs come from the application. Here, `uuid.UUID` is the UUID type already used by the project. Use the project's representation and generator; do not add a UUID library just to copy this example. The `orders.id` column is UUID with no database default.
 
 ```go
-func createOrder(ctx context.Context, pool *pgxpool.Pool, customerID int64) (int64, error) {
+func createOrder(ctx context.Context, pool *pgxpool.Pool, orderID, customerID uuid.UUID) error {
     tx, err := pool.Begin(ctx)
     if err != nil {
-        return 0, fmt.Errorf("begin transaction: %w", err)
+        return fmt.Errorf("begin transaction: %w", err)
     }
     defer func() {
         rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
@@ -17,14 +19,12 @@ func createOrder(ctx context.Context, pool *pgxpool.Pool, customerID int64) (int
         }
     }()
 
-    var orderID int64
-    err = tx.QueryRow(ctx,
-        `INSERT INTO orders (customer_id)
-        VALUES ($1)
-        RETURNING id`, customerID,
-    ).Scan(&orderID)
+    _, err = tx.Exec(ctx,
+        `INSERT INTO orders (id, customer_id)
+        VALUES ($1, $2)`, orderID, customerID,
+    )
     if err != nil {
-        return 0, fmt.Errorf("create order: %w", err)
+        return fmt.Errorf("create order: %w", err)
     }
 
     _, err = tx.Exec(ctx,
@@ -32,26 +32,28 @@ func createOrder(ctx context.Context, pool *pgxpool.Pool, customerID int64) (int
         VALUES ($1, $2)`, orderID, "created",
     )
     if err != nil {
-        return 0, fmt.Errorf("create order event: %w", err)
+        return fmt.Errorf("create order event: %w", err)
     }
     if err := tx.Commit(ctx); err != nil {
-        return 0, fmt.Errorf("commit transaction: %w", err)
+        return fmt.Errorf("commit transaction: %w", err)
     }
-    return orderID, nil
+    return nil
 }
 ```
 
-The caller's context controls begin, queries, and commit. Canceling it does not automatically roll back a native pgx transaction, and a rollback using the canceled context may fail immediately. Here, `context.WithoutCancel(ctx)` preserves values but removes cancellation and the deadline; `context.WithTimeout` sets a new deadline. Two seconds is an example, not a default. Cleanup can delay return after cancellation. For Go versions before 1.21, use an appropriate separate bounded cleanup context.
+The caller's context controls begin, queries, and commit. Canceling it does not roll back a native pgx transaction automatically. Rollback with the canceled context may fail at once. `context.WithoutCancel(ctx)` keeps context values but removes cancellation and the deadline. `context.WithTimeout` sets a new deadline. Two seconds is an example, not a default. Cleanup can delay the return after cancellation. Before Go 1.21, use another separate cleanup context with a timeout.
 
-A deferred rollback after a successful commit returns `pgx.ErrTxClosed`, which is expected. Handle other errors according to the application. The example logs the failure without the raw error; add only approved safe diagnostic fields, as described in [Database errors](errors.md). A separate context cannot guarantee success: the connection may already be closed. If rollback of a real transaction fails, pgx closes the connection. Do not use an unbounded cleanup context.
+A deferred rollback after commit returns `pgx.ErrTxClosed`. This is expected. Handle other errors under the application's policy. This example logs only a safe message. Add only approved safe fields; see [Database errors](errors.md). A separate context does not guarantee cleanup: the connection may already be closed. If rollback of a real transaction fails, pgx closes the connection. Always bound cleanup time.
 
-Describe commit outcomes accurately in code and reports: `pgx.ErrTxCommitRollback` confirms rollback, but a network error during commit can leave the outcome unknown. Do not say that every failure rolled back; a later cleanup attempt or `pgx.ErrTxClosed` does not prove the outcome of an uncertain commit.
+The helper wraps errors with `%w` for internal handling. These errors still expose driver types and may contain sensitive text. Translate them before crossing a repository boundary that must hide driver types. Apply the project's safe output policy before logging or returning them to a client. Use the project's logger in real code.
+
+Report commit results accurately. `pgx.ErrTxCommitRollback` confirms rollback. A network error during commit can leave the result unknown. Do not say every failure rolled back. A later cleanup attempt or `pgx.ErrTxClosed` does not prove whether an uncertain commit succeeded.
 
 ## Rules
 
-- Execute all related queries through the same `tx`, including queries in repository methods. A query through `pool` is outside that transaction.
-- Check `RowsAffected()` for `UPDATE` or `DELETE` when the number of changed rows affects the invariant.
-- Use `BeginTx` with `pgx.TxOptions` when a non-default isolation level is required. Use `SELECT ... FOR UPDATE` when the invariant needs row locks and acquire locks in a consistent order. Row locks do not protect absent rows or every invariant; consider constraints, other synchronization, or serializable isolation as appropriate.
-- On a retryable serialization failure (`40001`) or deadlock (`40P01`), retry the entire operation in a new transaction. Bound attempts, use backoff, respect context cancellation, and avoid repeating external side effects. A commit error can leave the outcome uncertain; do not blindly retry non-idempotent work. See [Database errors](errors.md) for error classification.
-- After a SQL error, PostgreSQL normally marks the transaction as failed. Roll it back; use a savepoint when partial recovery is required.
-- Test success, rollback after a later operation fails, cancellation, and relevant concurrent behavior against PostgreSQL. See [Testing database code](testing.md).
+- Run all related queries through the same `tx`, including repository calls. A query through `pool` runs outside that transaction.
+- Check `RowsAffected()` for `UPDATE` or `DELETE` when the row count affects the data rule.
+- Use `BeginTx` and `pgx.TxOptions` when the default isolation level is not enough. Use `SELECT ... FOR UPDATE` when the rule needs row locks. Take locks in a fixed order. Row locks do not protect missing rows or every rule. Consider constraints, other synchronization, or serializable isolation as needed.
+- For retryable serialization failures (`40001`) or deadlocks (`40P01`), retry the whole operation in a new transaction. Limit attempts, use backoff, and respect cancellation. Do not repeat external side effects. An uncertain commit needs a safe recovery policy; do not blindly retry work that may run twice. See [Database errors](errors.md) for classification.
+- After a SQL error, PostgreSQL usually marks the transaction as failed. Roll it back. Use a savepoint only when partial recovery is needed, and check savepoint and rollback errors.
+- Test success, rollback after a later write fails, cancellation, and relevant concurrent work on PostgreSQL. See [Testing database code](testing.md).

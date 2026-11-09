@@ -28,13 +28,17 @@
     {
       "id": 3,
       "prompt": "An HTTP handler calls a use case and a repository. The repository currently logs an error and returns it; the use case logs it again; the handler logs it a third time. Remove duplicate reporting while retaining useful diagnosis and the existing response contract. Add tests.",
-      "setup": "Disposable Go service with a capture logger at each layer, a repository fake that fails, and a documented HTTP error response. No live database is required.",
+      "setup": "Disposable Go service with a capture logger at each layer and a documented HTTP error response. A repository fake returns a sentinel error with a synthetic secret marker. Callers inside the application need errors.Is to inspect the cause. No live database is needed.",
       "expected_output": "The error retains useful operation context and is reported once at the boundary that handles it.",
       "assertions": [
         "The lower layers return or wrap the failure with useful context instead of each logging it",
         "The handling boundary emits one useful failure signal without exposing sensitive details",
         "The HTTP response contract remains unchanged",
-        "Tests exercise the failure and check that duplicate logs are not emitted"
+        "Tests exercise the failure and check that duplicate logs are not emitted",
+        "Preserves errors.Is for the sentinel cause while keeping the synthetic secret marker out of logs and HTTP output"
+      ],
+      "additional_skills": [
+        "go-code-style"
       ]
     },
     {
@@ -75,14 +79,16 @@
     },
     {
       "id": 7,
-      "prompt": "A Go service uses an established structured logger and exports metrics. Add visibility for a new background worker's startup and shutdown. Keep dependencies and deployment unchanged; add tests for the behavior you change.",
-      "setup": "Disposable Go service with an established logger, lifecycle-controlled worker, and capture logger. No profiling or dashboard infrastructure is present.",
+      "prompt": "Implement a background worker that runs one supplied job. Operators need to see when it starts and stops, and whether the job fails. Use the existing logger and keep the current dependencies and deployment. Add tests for success, failure, and cancellation.",
+      "setup": "Disposable Go service with a Worker holding a structured logger and a job function that accepts context.Context and returns an error. Run must call the job once, return its error, and pass the caller context. The service has metrics but no worker lifecycle logs. A capture logger is available. There is no profiling or dashboard setup.",
       "expected_output": "Meaningful worker lifecycle events use existing conventions without unrelated infrastructure or logger migration.",
       "assertions": [
         "Reports meaningful startup and shutdown with appropriate levels and safe context",
         "Uses the existing logger and preserves the current dependency and deployment setup",
         "Does not add a profiling endpoint, backend, dashboard, or logger migration just for the task",
-        "Tests the changed lifecycle signals using deterministic synchronization"
+        "Tests the changed lifecycle signals using deterministic synchronization",
+        "Records a job failure safely and returns the original error or a wrapper that preserves errors.Is",
+        "Tests job success, failure, and cancellation through Worker.Run"
       ]
     },
     {
@@ -95,6 +101,21 @@
         "Tests the changed recording behavior with the available recorder, including a failure path",
         "States that the unavailable live exporter delivery was not verified rather than claiming an end-to-end pass",
         "Does not add or change infrastructure outside the requested task"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Rename the private repository field repo and constructor parameter to bankAccounts, and update references. Keep the service behavior and public API compatible. Existing middleware already records request success, failure, and latency. Run the relevant checks.",
+      "additional_skills": [
+        "go-code-style"
+      ],
+      "setup": "Disposable Go package with BankAccountRepository, accountService.repo, newAccountService(repo BankAccountRepository), and ListAccounts calling s.repo.List(ctx). The method returns repository results and errors to the HTTP caller. Existing tests cover a populated list, an empty list, and a repository error. The middleware owns request logs and latency metrics.",
+      "expected_output": "The field and parameter use the plural entity name. The naming change preserves behavior and existing telemetry.",
+      "assertions": [
+        "Uses bankAccounts for the private repository field and constructor parameter and updates their uses",
+        "Preserves returned values, errors, context, and public method signatures",
+        "Adds no new logs, metrics, spans, telemetry dependencies, or logger parameters for the rename",
+        "Runs the existing behavior tests and Go formatting checks"
       ]
     }
   ]

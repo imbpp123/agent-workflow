@@ -2,15 +2,15 @@
 
 ## Channel ownership
 
-- Use channels to communicate or coordinate when they make ownership and flow clear. Choose a mutex for shared state when it is simpler.
-- Define who sends, receives, and, if needed, closes each channel. A channel needs closing only when receivers need a completion signal, such as ending a `range` loop.
-- Close a channel once, after all sends are finished. With multiple senders, a coordinator can wait for them and close the channel. Sending on or closing an already closed channel panics.
-- Use `<-chan T` and `chan<- T` in APIs when the caller needs only one direction. Sending a pointer is valid, but define whether ownership transfers or access remains synchronized. Sending a slice or map value does not copy its underlying data.
-- Choose buffer capacity based on the intended handoff, throughput, and backpressure. A buffer does not replace cancellation or guarantee that a sender will not block.
+- Use channels when they make communication, ownership, and flow clear. Choose a mutex for shared state when it is simpler.
+- Define who sends, receives, and closes each channel. Close a channel only when receivers need a completion signal, such as the end of a `range` loop.
+- Close a channel once, after all sends finish. With several senders, one coordinator can wait for them and close the channel. Sending on or closing a closed channel panics.
+- Use `<-chan T` and `chan<- T` in APIs when the caller needs only one direction. For a pointer, define whether the send transfers ownership. Synchronize access if it stays shared. Sending a slice or map does not copy the data it refers to.
+- Choose buffer capacity for the intended handoff, work rate, and pressure on senders. A buffer does not replace cancellation. A sender can still block when the buffer is full.
 
 ## Cancellation and select
 
-Make potentially blocking sends and receives cancellable when the caller can abandon the operation. A `select` does not prioritize cancellation if multiple cases are ready, so do not rely on it for an immediate or exclusive stop.
+Let blocking sends and receives handle cancellation when the caller can stop waiting. A `select` gives cancellation no priority when several cases are ready. It cannot guarantee an immediate stop or that no other ready case runs.
 
 ```go
 func forward(ctx context.Context, in <-chan Item, out chan<- Item) {
@@ -35,10 +35,10 @@ func forward(ctx context.Context, in <-chan Item, out chan<- Item) {
 }
 ```
 
-The owner of `out` closes it when all senders have finished; `forward` does not close it. Cancellation must also reach other blocking operations, such as I/O, where supported. Not every `select` needs a context case: a bounded operation with a guaranteed completion path can end normally.
+The owner of `out` closes it after all senders finish. `forward` does not close it. Pass cancellation to other blocking operations, such as I/O, where supported. A bounded operation with a guaranteed completion path can end normally. It does not always need a context case in its `select`.
 
 ## Pipelines and workers
 
-- If a downstream stage can stop early, ensure upstream senders can also stop. Propagate errors and cancellation and wait for started workers to exit.
-- Bound concurrency when input size or downstream capacity requires it. A fixed worker pool, semaphore, or existing group limit can provide the bound; select based on the workload.
-- A timer created repeatedly in a hot loop may add allocations. If profiling shows a problem, consider reusing a timer; follow the timer semantics for the project's Go version.
+- If a later stage can stop early, let earlier senders stop too. Pass errors and cancellation to the right owner. Wait for started workers to exit.
+- Limit concurrency when input size or the next stage's capacity requires it. Choose a fixed worker pool, semaphore, or existing group limit based on the work.
+- Repeated timer creation in a busy loop may add allocations. Consider timer reuse if profiling shows a problem. Follow timer behavior for the project's Go version.

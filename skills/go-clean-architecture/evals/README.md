@@ -2,6 +2,8 @@
 
 `evals.json` contains nine scenarios. Each case has a task, setup, expected result, and checks. Prepare a Go project before running a case. A valid JSON file alone does not show that the skill works.
 
+A case may list `additional_skills`. Supply those skills and their relevant references together with this skill. The combined repository case is in `go-postgresql/evals/evals.json`.
+
 | Case | Main checks |
 | --- | --- |
 | 1 | Shared domain rules for HTTP and CLI. Safe cancellation during concurrent shipping. |

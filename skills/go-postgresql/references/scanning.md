@@ -1,6 +1,6 @@
 # Queries and scanning
 
-Use the caller's context and parameterized SQL with the project's database library. The snippets show native pgx v5 and assume `pool` is a `*pgxpool.Pool`; imports, types, and function signatures are omitted. For other libraries, use their equivalent APIs without migrating the existing layer.
+Use the caller's context and bind SQL values with the project's database library. These snippets use native pgx v5 and a `*pgxpool.Pool` named `pool`. Imports, types, and function signatures are omitted. For other libraries, use their APIs and keep the existing database layer.
 
 ## One row
 
@@ -22,7 +22,7 @@ if err != nil {
 return &user, nil
 ```
 
-`QueryRow` reports errors on `Scan` and discards rows after the first. Call `Scan` to return the connection to the pool. Ensure the query result is unique when required; if duplicates must be detected, use `Query` and check the count, or `pgx.CollectExactlyOneRow` where supported by the project's pgx version.
+`QueryRow` reports errors on `Scan`. It discards rows after the first. Call `Scan` to release the connection. Ensure results are unique when the contract requires it. To detect duplicates, use `Query` and check the count, or use `pgx.CollectExactlyOneRow` if the project's version supports it.
 
 ## Multiple rows
 
@@ -51,14 +51,14 @@ if err := rows.Err(); err != nil {
 return users, nil
 ```
 
-A query can return rows before reporting an error. Check `rows.Err()` before treating the whole result as successful; streaming with external side effects requires explicit handling of partial progress. For large results, use bounded pagination with a stable order or streaming instead of collecting an unbounded slice.
+A query can return rows before an error. Check `rows.Err()` before treating the full result as successful. When streaming causes external side effects, handle partial progress explicitly. For large results, use bounded pages with stable ordering or stream rows. Do not collect an unbounded slice.
 
 ## Rules
 
-- Map database outcomes according to the application contract; see [Database errors](errors.md).
-- List selected columns explicitly and match `Scan` destinations to their order and types. For a nullable field `Name *string`, pass `&user.Name`; alternatively use a suitable `pgtype` nullable type. Preserve the distinction between NULL and a zero value.
-- `pgx.CollectRows` and `pgx.RowToStructByName` are alternatives to manual scanning. Check their errors and field mapping, and confirm support in the project's pgx version. `CollectRows` closes rows but collects them in memory.
-- Preallocate slice capacity when a reasonable result size is already known or bounded and the allocation is justified. Preserve the contract for nil versus empty results.
-- Bind values with PostgreSQL placeholders; never concatenate user input into SQL. Placeholders do not represent identifiers or sort direction: map those inputs to fixed allowlists.
-- For a list, use a compatible slice with `WHERE id = ANY($1)`. Define and test empty and nil input behavior: SQL distinguishes an empty array from a NULL array, including in logical expressions.
-- Test missing and multiple rows where relevant, NULL and non-NULL values, scan and iteration errors, cancellation, and parameter binding. Use PostgreSQL integration tests for actual SQL and types; see [Testing database code](testing.md).
+- Map database results to the application contract. The snippets wrap errors for internal use; `%w` does not hide driver types or sensitive text. Translate or sanitize at the required boundary. See [Database errors](errors.md).
+- List selected columns explicitly. Match `Scan` targets to their order and types. For a nullable `Name *string`, pass `&user.Name`, or use a suitable nullable `pgtype` type. Keep NULL distinct from a zero value. Keep driver-specific types inside the adapter.
+- `pgx.CollectRows` and `pgx.RowToStructByName` can replace manual scanning. Check errors, field mapping, and support in the project's pgx version. `CollectRows` closes rows but stores the results in memory.
+- Set slice capacity in advance when the result size is known or bounded and it helps. Keep the contract for nil and empty results.
+- Bind values with PostgreSQL placeholders. Never join user input into SQL. Placeholders cannot stand for identifiers or sort direction. Map those inputs to fixed allowed values.
+- For a list, use a compatible slice with `WHERE id = ANY($1)`. Define and test empty and nil inputs. SQL treats an empty array and a NULL array differently, including in logical expressions.
+- Test missing and multiple rows when relevant, NULL and non-NULL values, scan and iteration errors, cancellation, and parameter binding. Use PostgreSQL tests for actual SQL and types. See [Testing database code](testing.md).

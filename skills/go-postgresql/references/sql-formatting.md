@@ -1,8 +1,8 @@
 # SQL formatting
 
-Follow the project's existing SQL formatting conventions. Otherwise, use uppercase SQL keywords and put each major clause on a separate line. Indent fields, values, and conditions when splitting them across lines. Keep related expressions readable rather than splitting every keyword.
+Follow the project's SQL style. If there is no style, use uppercase keywords and put each major clause on a separate line. Indent fields, values, and conditions that span lines. Keep related expressions together; do not split every keyword.
 
-For table definitions, put the opening parenthesis after the table name, each column or table constraint on its own indented line, and the closing parenthesis on a separate line:
+For tables, put the opening parenthesis after the name. Put each column or table constraint on an indented line. Put the closing parenthesis on its own line:
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -18,7 +18,7 @@ COMMENT ON COLUMN users.email IS 'Email address used to contact the account owne
 COMMENT ON COLUMN users.created_at IS 'Time when the account was created';
 ```
 
-Apply the same layout in SQL files and Go raw strings. For queries, separate clauses and put multiple selected columns or conditions on their own lines:
+Use this layout in SQL files and Go raw strings. Split query clauses, selected columns, and conditions across lines:
 
 ```sql
 SELECT
@@ -30,4 +30,4 @@ WHERE active = $1
 ORDER BY id;
 ```
 
-For inserts and updates, separate the operation, values or assignments, filters, and `RETURNING` clauses. Use parameters for values; formatting does not replace parameterization.
+For inserts and updates, separate the operation, values or assignments, filters, and `RETURNING` clauses. Bind values as parameters. Formatting alone does not make SQL safe.

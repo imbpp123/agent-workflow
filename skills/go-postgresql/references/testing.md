@@ -1,16 +1,18 @@
 # Testing PostgreSQL code
 
+Use [go-testing](../../go-testing/SKILL.md) for general test design when available. This reference covers PostgreSQL behavior and the checks that fakes cannot replace.
+
 ## Unit tests
 
-- Test repository and application behavior with existing fakes or small interfaces where useful: expected results, not-found contracts, error mapping, cancellation, and failure paths. Keep tests deterministic; avoid coupling to exact SQL or call order unless required by the contract.
-- Fakes do not validate SQL, PostgreSQL types, constraints, transaction isolation, or pgx behavior. Use integration tests for those.
+- Use existing fakes or small interfaces to check repository results, not-found contracts, error mapping, cancellation, and failure paths. Keep tests deterministic. Match exact SQL or call order only when the contract requires it.
+- Fakes do not check SQL, PostgreSQL types, constraints, transaction isolation, or pgx behavior. Use integration tests for these.
 
 ## Integration tests
 
-- Exercise the real repository entry point with the project's database library and a disposable PostgreSQL instance using the project's supported versions and migrations. Follow existing setup; do not add test dependencies without a reason or use production credentials.
-- Isolate test data and clean up resources even on failure. Use separate databases or schemas when needed. A test transaction only isolates operations that actually use that transaction; it cannot roll back commits on other connections.
-- Cover applicable paths: parameter binding, zero/one/multiple rows, `NULL` and non-`NULL` values, empty inputs, type mapping, constraints, domain error mapping, and query cancellation.
-- Compare timestamp instants with `time.Time.Equal`, rather than comparing `time.Time` structs, and account for PostgreSQL timestamp precision. Exercise timezone-sensitive tests outside UTC as well.
-- For transactions, verify successful commits and that a later failure rolls back earlier writes. Test relevant concurrent invariants and retry behavior with separate connections and explicit synchronization; avoid sleeps. Use bounded contexts and ensure goroutines and database resources are cleaned up.
-- For pool lifecycle, cover startup failure, canceled acquisition when the pool is exhausted, resource release, and shutdown where applicable. Use controlled deadlines and synchronization rather than relying on timing alone.
-- Run the project's documented checks. If PostgreSQL or its runtime is unavailable, report integration tests as not run; do not present mocks or skipped tests as integration coverage. When CI configuration is in scope, make required integration tests fail clearly if the database is missing.
+- Call the real repository entry point with the project's database library. Use a disposable PostgreSQL instance, supported versions, and project migrations. Follow the existing setup. Add test dependencies only with a reason. Do not use production credentials.
+- Isolate data and clean up resources even after failures. Use separate databases or schemas when needed. A test transaction covers only calls that use it. It cannot undo commits on other connections.
+- Cover relevant paths: bound parameters, zero/one/multiple rows, NULL and non-NULL values, empty inputs, type mapping, constraints, domain error mapping, and query cancellation.
+- Compare timestamp instants with `time.Time.Equal`, not struct equality. Account for PostgreSQL timestamp precision. Run timezone-sensitive tests outside UTC too.
+- Check successful commits and rollback of earlier writes after a later failure. Check relevant concurrent data rules and retries with separate connections and explicit synchronization. Do not use sleeps to guess the order. Bound contexts and clean up goroutines and database resources.
+- For pools, check startup failure, canceled acquisition from an exhausted pool, resource release, and shutdown where relevant. Use controlled deadlines and synchronization, not timing alone.
+- Run the project's documented checks. If PostgreSQL or its runtime is missing, report integration tests as not run. Mocks and skipped tests do not prove integration behavior. If CI changes are in scope, make required integration tests fail clearly when the database is missing.

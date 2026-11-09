@@ -75,13 +75,19 @@
     },
     {
       "id": 7,
+      "additional_skills": [
+        "go-testing"
+      ],
       "prompt": "Review a Go shutdown test that starts a goroutine, sleeps for 100 milliseconds, cancels its context, sleeps again, and checks runtime.NumGoroutine. Replace it with a deterministic test that proves this worker exits after cancellation. The worker can block while sending a result.",
-      "setup": "Disposable Go module with a context-aware worker and a test that can expose a signal before the worker attempts its send. No third-party leak detector is installed.",
+      "setup": "Disposable Go module with a context-aware worker, caller-owned channels, and standard-library tests. The test can observe a signal before the worker attempts a send to an unbuffered output channel with no receiver. No third-party leak detector is installed.",
       "expected_output": "The test uses explicit coordination and observes this worker's completion after cancellation, with bounded waits only as failure guards.",
       "assertions": [
-        "The test establishes that the worker reached the blocked-send path using an explicit signal rather than a sleep",
-        "After cancellation the test observes the worker's completion within a bounded wait and cleans up any started work",
+        "The test waits for an explicit signal that the worker reached the send path before canceling; it does not use a sleep for ordering",
+        "The unbuffered output has no receiver during the cancellation check, so a normal send cannot release the worker; cleanup may receive only after this check fails",
+        "After cancellation the test observes this worker's completion within a bounded wait; cancel returning alone is not treated as completion",
+        "Cleanup is registered before checks can stop the test and cancels or releases started work, then waits for it to exit",
         "The test does not treat a global goroutine count or a passing race detector as proof that the worker exited",
+        "The test follows the standard-library test style without adding a mock framework or leak detector",
         "The affected package is checked with go test -race when supported and any unsupported or unrun check is reported"
       ]
     },

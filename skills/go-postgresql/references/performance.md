@@ -2,27 +2,27 @@
 
 ## Pool lifecycle
 
-- Create a shared `pgxpool.Pool` at application startup, reuse it, and close it at shutdown. Do not create a pool per request or share one `*pgx.Conn` concurrently.
-- Check errors from `ParseConfig` and `NewWithConfig`. Configure `MaxConns`, `MinConns`, `MaxConnLifetime`, and `MaxConnIdleTime` as needed. Budget connections across all application instances and other clients; never log credentials.
-- Creating a pool does not prove the database is reachable. If startup requires connectivity, call `Ping` with a bounded context; close the pool if the check fails. A successful ping does not verify the schema or future queries.
-- Pass a suitable context with a deadline to operations and connection acquisition, so a request cannot wait indefinitely for the pool.
-- If the project uses PgBouncer, check pgx prepared-statement and query-mode compatibility with the PgBouncer version and pooling configuration; see the [pgx documentation](https://pkg.go.dev/github.com/jackc/pgx/v5#hdr-PgBouncer).
-- Wire shutdown into the application's lifecycle: stop accepting requests and jobs, drain or cancel active work and wait for it to release acquired resources, then close the pool. Do not replace requested startup and shutdown wiring with a comment that a caller should drain work. If another component owns shutdown, integrate with it and verify the ordering. `Pool.Close()` waits for checked-out connections and has no context parameter.
+- Create a shared `pgxpool.Pool` at startup. Reuse it and close it at shutdown. Do not create a pool per request or use one `*pgx.Conn` concurrently.
+- Check errors from `ParseConfig` and `NewWithConfig`. Set `MaxConns`, `MinConns`, `MaxConnLifetime`, and `MaxConnIdleTime` as needed. Count connections across all application instances and other clients. Never log credentials.
+- Creating a pool does not prove PostgreSQL is reachable. If startup requires a connection, call `Ping` with a bounded context. Close the pool if it fails. A successful ping does not check the schema or future queries.
+- Use contexts with suitable deadlines for operations and connection acquisition. A request must not wait forever for the pool.
+- For PgBouncer, check prepared-statement and query-mode support for the actual pgx version, PgBouncer version, and pooling settings. See the [pgx documentation](https://pkg.go.dev/github.com/jackc/pgx/v5#hdr-PgBouncer).
+- Connect shutdown to the application lifecycle. Stop new requests and jobs. Drain or cancel active work, then wait for it to release resources. Close the pool last. Implement requested startup and shutdown wiring; a comment telling the caller to drain work is not enough. If another component owns shutdown, use it and verify the order. `Pool.Close()` waits for acquired connections and has no context parameter.
 
 ## Returning connections
 
-- `Pool.Query` holds a connection until `Rows` is closed; check `Rows.Err()`. `Pool.QueryRow` releases it when `Scan` is called. See [Queries and scanning](scanning.md).
-- Release connections obtained with `Acquire`; close `BatchResults` from `SendBatch` and handle its error. Commit or roll back transactions. See [Transactions](transactions.md).
-- For dedicated sessions such as long-running `LISTEN`, manage the connection lifetime explicitly. Clean up session state before returning a connection to the pool.
+- `Pool.Query` holds a connection until `Rows` is closed. Check `Rows.Err()`. `Pool.QueryRow` releases its connection when `Scan` is called. See [Queries and scanning](scanning.md).
+- Release connections from `Acquire`. Close `BatchResults` from `SendBatch` and check the close error. Commit or roll back transactions. See [Transactions](transactions.md).
+- For a dedicated session, such as a long-running `LISTEN`, manage its connection lifetime. Clear session state before returning the connection to the pool.
 
 ## Observability
 
-- Export `pool.Stat()` through the project's existing metrics system, if configured. Record acquired, idle, and maximum connections as gauges; track acquisition counts, wait duration, and cancellations as cumulative counters or correct deltas, accounting for pool or process resets. Check metric availability for the project's pgx version.
-- PostgreSQL server metrics are separate from pool metrics. If server monitoring is needed, reuse the existing infrastructure or managed-service collector: track connections, active queries waiting for locks, transaction rollbacks, and deadlocks over time. Use `pg_stat_activity` and `pg_stat_database` where available, with suitable read permissions; account for cumulative counter resets. Use `pg_stat_statements` for query statistics only when already available and appropriate.
-- Send server metrics to the existing metrics backend if it supports them, including Sentry when configured for that signal. Avoid duplicate collection across application instances; do not add a collector, permissions, or PostgreSQL extensions without a task-specific need.
-- Follow the project's existing logging and tracing conventions for database errors and query latency; avoid duplicate instrumentation. Do not include credentials, query parameters, or sensitive data in telemetry. Use Sentry only if the project already uses it and its configured SDK or integration supports the required signal; do not assume it collects pool metrics automatically.
+- Export `pool.Stat()` through the existing metrics system, if configured. Record acquired, idle, and maximum connections as gauges. Record acquisition counts, wait duration, and cancellations as cumulative counters or correct deltas. Handle pool and process resets. Check which metrics the project's pgx version supports.
+- Server metrics are separate from pool metrics. If server monitoring is needed, reuse the existing collector or managed service. Track connections, active queries waiting for locks, transaction rollbacks, and deadlocks over time. Use `pg_stat_activity` and `pg_stat_database` when available with the required read access. Account for cumulative counter resets. Use `pg_stat_statements` only if it is already available and fits the task.
+- Send server metrics to the existing backend if it supports them. This includes Sentry when configured for that signal. Avoid duplicate collection across application instances. Add collectors, permissions, or PostgreSQL extensions only for a current task need.
+- Follow existing logging and tracing rules for database errors and query time. Use [go-observability](../../go-observability/SKILL.md) for general policy when available. Avoid duplicate instrumentation and sensitive telemetry, including credentials and query parameters. Use Sentry only if the project already uses it and its SDK or integration supports the signal. Do not assume it collects pool metrics automatically.
 
 ## Testing and performance
 
-- Test with PostgreSQL: startup failure, exhausted pool and canceled acquisition, resource release, and shutdown. For lifecycle wiring, test that new work stops and active work releases its resources before the pool closes. See [Testing database code](testing.md).
-- Measure the existing representative workload before selecting an optimization. For a performance review with a disposable database and a representative workload, run a baseline measurement; create a benchmark if the project has none. Report unavailable measurements rather than assuming a speedup. Consider `SendBatch` or `CopyFrom` where appropriate, check operation and batch close errors, and commit or roll back any enclosing transaction. Use `EXPLAIN` safely on representative queries and choose indexes based on actual workload.
+- Test startup failure, canceled acquisition from an exhausted pool, resource release, and shutdown on PostgreSQL. Check that new work stops and active work releases resources before pool close. See [Testing database code](testing.md).
+- Measure a representative workload before choosing an optimization. For a performance review, run a baseline on a disposable database. Add a benchmark if none exists. Report missing measurements; do not assume a speedup. Consider `SendBatch` or `CopyFrom` when useful. Check operation and batch close errors. Finish any enclosing transaction. Use `EXPLAIN` safely on representative queries and choose indexes for the actual workload.

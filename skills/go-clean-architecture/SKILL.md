@@ -14,10 +14,9 @@ Use these rules when the project uses Clean Architecture or the user asks for it
 ## Boundaries
 
 - Keep imports pointing inward. Infrastructure and delivery can import application and domain. Application can import domain. Domain must not import application. Neither application nor domain may import infrastructure or delivery.
-- When one module calls a service in another module, use an interface. Define it in the package that calls the service.
-- Include only the methods the caller needs.
+- When one module calls another module's service, use an interface defined by the caller. Include only the methods the caller needs.
 - Use data types and pure functions directly when the import direction is allowed.
-- Define ports in the inner layer that needs them. A port is an interface for an external capability. Implement it in an outer adapter.
+- Define ports in the inner layer that uses them. A port is an interface for an external capability. Implement it in an outer adapter.
 - Create and connect dependencies with constructors or factory functions at the application entry point. Do not use a DI framework.
 
 ## Domain
@@ -35,7 +34,7 @@ Use these rules when the project uses Clean Architecture or the user asks for it
 
 ## Repositories and adapters
 
-- Use repositories for SQL, data mapping, database transactions, and storage error translation.
+- Use repositories for SQL, data mapping, and storage error translation. Their writes must join the use case's transaction when they must commit together.
 - Use handlers to read requests and build responses. Map errors to the response contract.
 - Use external clients to map requests and responses for external APIs.
 - Keep business decisions and use case steps out of repositories and adapters. Delegate them to application or domain code.
@@ -48,15 +47,21 @@ Use these rules when the project uses Clean Architecture or the user asks for it
 - Translate expected errors at module boundaries. Keep unexpected infrastructure failures distinct from business results.
 - Keep internal error details out of public responses.
 
+For Go names and error wrapping, read [Go code style](../go-code-style/SKILL.md). Use the boundary's contract to decide which error types callers may inspect.
+
 ## Transactions and external calls
 
-- Let the use case define which changes must succeed or fail together.
-- Let infrastructure manage the database transaction through an application port. Include all repository writes that must succeed or fail together. Keep driver transaction types out of the application contract.
+- The use case defines which writes must succeed or fail together.
+- Infrastructure opens, commits, and rolls back the database transaction through an application port. All participating repository writes use that transaction. Keep driver transaction types out of the application contract.
 - Use atomic storage constraints or concurrency control when needed to protect business rules during concurrent requests.
 - A database transaction cannot make an external API call part of the same atomic operation. Handle retries and partial failures. Use idempotency to prevent duplicate effects when a request is repeated.
+
+For PostgreSQL transaction APIs, isolation, and retries, read [Go PostgreSQL](../go-postgresql/SKILL.md).
 
 ## Tests
 
 - Test domain rules and invalid states without infrastructure.
 - Test use cases with test implementations of their ports. Cover dependency failures.
 - Use integration tests for real adapters, SQL, and transaction boundaries.
+
+For test tools and verification commands, read [Go testing](../go-testing/SKILL.md).
